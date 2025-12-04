@@ -20,3 +20,20 @@ A responsive web application for generating printable ArUco marker grids used in
 ___
 
 This project is developed for academic and research purposes at the match, Leibniz University Hannover.
+
+## References
+
+@article{GARRIDOJURADO20142280,
+title = {Automatic generation and detection of highly reliable fiducial markers under occlusion},
+journal = {Pattern Recognition},
+volume = {47},
+number = {6},
+pages = {2280-2292},
+year = {2014},
+issn = {0031-3203},
+doi = {https://doi.org/10.1016/j.patcog.2014.01.005},
+url = {https://www.sciencedirect.com/science/article/pii/S0031320314000235},
+author = {S. Garrido-Jurado and R. Muñoz-Salinas and F.J. Madrid-Cuevas and M.J. Marín-Jiménez},
+keywords = {Augmented reality, Fiducial marker, Computer vision},
+abstract = {This paper presents a fiducial marker system specially appropriated for camera pose estimation in applications such as augmented reality and robot localization. Three main contributions are presented. First, we propose an algorithm for generating configurable marker dictionaries (in size and number of bits) following a criterion to maximize the inter-marker distance and the number of bit transitions. In the process, we derive the maximum theoretical inter-marker distance that dictionaries of square binary markers can have. Second, a method for automatically detecting the markers and correcting possible errors is proposed. Third, a solution to the occlusion problem in augmented reality applications is shown. To that aim, multiple markers are combined with an occlusion mask calculated by color segmentation. The experiments conducted show that our proposal obtains dictionaries with higher inter-marker distances and lower false negative rates than state-of-the-art systems, and provides an effective solution to the occlusion problem.}
+}
