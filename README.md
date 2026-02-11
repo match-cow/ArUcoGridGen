@@ -16,10 +16,10 @@ Web app for generating printable ArUco marker grids for computer vision and robo
 git clone https://github.com/yourusername/arucogridgen.git
 cd arucogridgen
 pip install -r requirements.txt
-python app.py
+streamlit run app.py
 ```
 
-Open http://localhost:5000 in your browser.
+Open http://localhost:8501 in your browser.
 
 ## Docker
 
@@ -27,4 +27,4 @@ Open http://localhost:5000 in your browser.
 docker-compose up --build
 ```
 
-Access at http://localhost:5000
+Access at http://localhost:8501

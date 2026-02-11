@@ -1,17 +1,64 @@
+"""
+ArUco Grid Generator - Streamlit Version
+
+A web application for generating printable ArUco marker grids for computer vision and robotics.
+Migrated from Flask to Streamlit for improved maintainability and consistency.
+"""
+
 import io
 import math
 
 import cv2
 import numpy as np
-from flask import Flask, jsonify, render_template, request, send_file
+import streamlit as st
+from pdf2image import convert_from_bytes
 from PIL import Image, ImageDraw, ImageFont
 from reportlab.lib.pagesizes import A3, A4
 from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
 from scipy.spatial.transform import Rotation as R_scipy
 
+# -----------------------------------------------------------------------------
+# Core Functions (migrated from Flask app.py)
+# -----------------------------------------------------------------------------
+
+
+# Constants
+PT_TO_MM = 25.4 / 72  # Convert points to mm (72 points per inch)
+
+
+def get_page_dimensions(paper_size, orientation):
+    """Get page dimensions in mm using reportlab pagesizes."""
+    if paper_size == "A4":
+        pagesize = A4
+    else:  # A3
+        pagesize = A3
+
+    width_pt, height_pt = pagesize
+    width_mm = width_pt * PT_TO_MM
+    height_mm = height_pt * PT_TO_MM
+
+    if orientation == "portrait":
+        return width_mm, height_mm
+    else:  # landscape
+        return height_mm, width_mm
+
+
+def get_pagesize(paper_size, orientation):
+    """Get page dimensions in points for reportlab PDF generation."""
+    if paper_size == "A4":
+        pagesize = A4
+    else:  # A3
+        pagesize = A3
+
+    if orientation == "portrait":
+        return pagesize
+    else:  # landscape
+        return (pagesize[1], pagesize[0])
+
 
 def generate_aruco_grid(data, low_res=False, draw_overlays=True):
+    """Generate an ArUco grid image based on the provided parameters."""
     # Extract parameters
     dictionary_name = data.get("dictionary", "DICT_5X5_250")
     rows = data.get("rows", 5)
@@ -28,16 +75,7 @@ def generate_aruco_grid(data, low_res=False, draw_overlays=True):
     aruco_dict = cv2.aruco.getPredefinedDictionary(getattr(cv2.aruco, dictionary_name))
 
     # Paper dimensions in mm
-    if paper_size == "A4":
-        if orientation == "portrait":
-            width_mm, height_mm = 210, 297
-        else:
-            width_mm, height_mm = 297, 210
-    else:  # A3
-        if orientation == "portrait":
-            width_mm, height_mm = 297, 420
-        else:
-            width_mm, height_mm = 420, 297
+    width_mm, height_mm = get_page_dimensions(paper_size, orientation)
 
     # Calculate total grid size
     total_width_mm = cols * marker_size_mm + (cols - 1) * separation_mm
@@ -104,7 +142,7 @@ def generate_aruco_grid(data, low_res=False, draw_overlays=True):
         )
         try:
             font = ImageFont.truetype("arial.ttf", font_size)
-        except:
+        except OSError:
             font = ImageFont.load_default()
         marker_id = 0
         for r in range(rows):
@@ -156,7 +194,7 @@ def generate_aruco_grid(data, low_res=False, draw_overlays=True):
             font_size = 6
             try:
                 font = ImageFont.truetype("arial.ttf", font_size)
-            except:
+            except OSError:
                 font = ImageFont.load_default()
             left_x = img_width_px - 140
             right_x = img_width_px - 60
@@ -207,7 +245,7 @@ def generate_aruco_grid(data, low_res=False, draw_overlays=True):
         font_size = 12
         try:
             font = ImageFont.truetype("arial.ttf", font_size)
-        except:
+        except OSError:
             font = ImageFont.load_default()
         # X axis (red, horizontal)
         draw.line(
@@ -262,16 +300,14 @@ def generate_aruco_grid(data, low_res=False, draw_overlays=True):
 
 
 def calculate_transformation(data):
+    """Calculate transformation matrix from grid parameters."""
     paper_size = data.get("paper_size", "A4")
     orientation = data.get("orientation", "portrait")
     base_translation = data.get("base_translation", [0, 0, 0])
     base_rotation = data.get("base_rotation", [0, 0, 0])  # roll, pitch, yaw in degrees
 
     # Paper dimensions in mm
-    if paper_size == "A4":
-        width_mm, height_mm = (210, 297) if orientation == "portrait" else (297, 210)
-    else:  # A3
-        width_mm, height_mm = (297, 420) if orientation == "portrait" else (420, 297)
+    width_mm, height_mm = get_page_dimensions(paper_size, orientation)
 
     tx, ty, tz = base_translation
     roll, pitch, yaw = [math.radians(r) for r in base_rotation]
@@ -323,10 +359,11 @@ def calculate_transformation(data):
 
 
 def generate_pdf(data):
-    # Extract parameters
-    show_ids = data.get("show_ids", True)
+    """Generate a PDF file with the ArUco grid."""
+    # Extract parameters (unused but kept for consistency with data structure)
+    _ = data.get("show_ids", True)
     show_scale = data.get("show_scale", True)
-    show_coordsys = data.get("show_coordsys", False)
+    _ = data.get("show_coordsys", False)
     show_params = data.get("show_params", True)
 
     # Generate high-res image
@@ -335,10 +372,7 @@ def generate_pdf(data):
     # Paper size
     paper_size = data.get("paper_size", "A4")
     orientation = data.get("orientation", "portrait")
-    if paper_size == "A4":
-        pagesize = A4 if orientation == "portrait" else (A4[1], A4[0])
-    else:
-        pagesize = A3 if orientation == "portrait" else (A3[1], A3[0])
+    pagesize = get_pagesize(paper_size, orientation)
 
     # Create PDF
     buffer = io.BytesIO()
@@ -387,31 +421,178 @@ def generate_pdf(data):
     return buffer
 
 
-app = Flask(__name__)
+def pdf_to_preview_images(pdf_buffer, dpi=150):
+    """Convert PDF buffer to PIL images for preview."""
+    pdf_buffer.seek(0)
+    images = convert_from_bytes(pdf_buffer.read(), dpi=dpi)
+    return images
 
 
-@app.route("/")
-def index():
-    return render_template("index.html")
+# -----------------------------------------------------------------------------
 
+# Page configuration
+st.set_page_config(page_title="ArUco Grid Generator", page_icon="camera", layout="wide")
 
-@app.route("/api/preview", methods=["POST"])
-def preview():
-    data = request.get_json()
-    # Generate low-res preview
-    img = generate_aruco_grid(data, low_res=True)
-    img_bytes = io.BytesIO()
-    img.save(img_bytes, format="PNG")
-    img_bytes.seek(0)
-    return send_file(img_bytes, mimetype="image/png")
+# Main title
+st.title("ArUco Grid Generator")
 
+# Sidebar for configuration
+with st.sidebar:
+    # Load branding logo
+    match_logo = Image.open("static/match.png")
+    st.image(match_logo, width=60)
 
-@app.route("/api/generate", methods=["POST"])
-def generate():
-    data = request.get_json()
-    pdf_buffer = generate_pdf(data)
-    return send_file(pdf_buffer, mimetype="application/pdf")
+    st.header("Configuration")
 
+    # Paper Settings Section
+    with st.expander("Page and Layout", expanded=True):
+        paper_size = st.selectbox("Paper Size", ["A4", "A3"], index=0)
+        orientation = st.selectbox("Orientation", ["portrait", "landscape"], index=0)
+        dictionary = st.selectbox(
+            "ArUco Dictionary",
+            [
+                "DICT_4X4_250",
+                "DICT_5X5_250",
+                "DICT_6X6_250",
+                "DICT_7X7_250",
+                "DICT_ARUCO_ORIGINAL",
+            ],
+            index=1,
+        )
 
-if __name__ == "__main__":
-    app.run(debug=True)
+    st.divider()
+
+    # Grid Dimensions Section
+    with st.expander("Grid Dimensions", expanded=True):
+        cols = st.number_input("Columns", min_value=1, value=5, step=1)
+        rows = st.number_input("Rows", min_value=1, value=7, step=1)
+        marker_size_mm = st.number_input(
+            "Marker Size (mm)", min_value=1, value=30, step=1
+        )
+        separation_mm = st.number_input(
+            "Separation (mm)", min_value=1, value=10, step=1
+        )
+
+    st.divider()
+
+    # Display Options Section
+    st.subheader("Optional Information")
+    show_ids = st.checkbox("Marker IDs", value=True)
+    show_scale = st.checkbox("Scale Ruler", value=True)
+    show_params = st.checkbox("Parameters", value=True)
+    show_coordsys = st.checkbox("Coordinate System", value=False)
+
+    # Coordinate System Section (conditionally visible)
+    if show_coordsys:
+        with st.expander("Coordinate System", expanded=True):
+            base_translation_x = st.number_input(
+                "Translation X (mm)", value=0.0, step=0.1
+            )
+            base_translation_y = st.number_input(
+                "Translation Y (mm)", value=0.0, step=0.1
+            )
+            base_translation_z = st.number_input(
+                "Translation Z (mm)", value=0.0, step=0.1
+            )
+            base_rotation_roll = st.number_input("Roll (deg)", value=0.0, step=0.1)
+            base_rotation_pitch = st.number_input("Pitch (deg)", value=0.0, step=0.1)
+            base_rotation_yaw = st.number_input("Yaw (deg)", value=0.0, step=0.1)
+
+            # Calculate and display transformation info
+            data_for_calc = {
+                "paper_size": paper_size,
+                "orientation": orientation,
+                "base_translation": [
+                    base_translation_x,
+                    base_translation_y,
+                    base_translation_z,
+                ],
+                "base_rotation": [
+                    base_rotation_roll,
+                    base_rotation_pitch,
+                    base_rotation_yaw,
+                ],
+            }
+            T, t_m, quat = calculate_transformation(data_for_calc)
+
+            st.caption("Transformation")
+            st.code(
+                f"T = [[{T[0, 0]:.2f}, {T[0, 1]:.2f}, {T[0, 2]:.2f}, {T[0, 3]:.2f}],"
+            )
+            st.code(
+                f"    [{T[1, 0]:.2f}, {T[1, 1]:.2f}, {T[1, 2]:.2f}, {T[1, 3]:.2f}],"
+            )
+            st.code(
+                f"    [{T[2, 0]:.2f}, {T[2, 1]:.2f}, {T[2, 2]:.2f}, {T[2, 3]:.2f}]]"
+            )
+            st.code(f"t = [{t_m[0]:.4f}, {t_m[1]:.4f}, {t_m[2]:.4f}]")
+            st.code(f"q = [{quat[0]:.4f}, {quat[1]:.4f}, {quat[2]:.4f}, {quat[3]:.4f}]")
+    else:
+        base_translation_x = 0.0
+        base_translation_y = 0.0
+        base_translation_z = 0.0
+        base_rotation_roll = 0.0
+        base_rotation_pitch = 0.0
+        base_rotation_yaw = 0.0
+
+# Build data dictionary from inputs
+data = {
+    "paper_size": paper_size,
+    "orientation": orientation,
+    "dictionary": dictionary,
+    "rows": rows,
+    "cols": cols,
+    "marker_size_mm": marker_size_mm,
+    "separation_mm": separation_mm,
+    "show_ids": show_ids,
+    "show_scale": show_scale,
+    "show_params": show_params,
+    "show_coordsys": show_coordsys,
+    "base_translation": [base_translation_x, base_translation_y, base_translation_z],
+    "base_rotation": [base_rotation_roll, base_rotation_pitch, base_rotation_yaw],
+}
+
+# Main content area
+
+# CSS for responsive preview that fits in window
+st.markdown(
+    """
+    <style>
+    div.stImage {
+        max-height: 65vh !important;
+        overflow: hidden;
+    }
+    div.stImage img {
+        max-height: 65vh;
+        object-fit: contain;
+        width: 100% !important;
+        height: auto !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+# Generate PDF and preview
+pdf_buffer = generate_pdf(data)
+preview_images = pdf_to_preview_images(pdf_buffer, dpi=150)
+
+if preview_images:
+    st.image(
+        preview_images[0], caption="Live Preview - ArUco Grid (PDF)", width="stretch"
+    )
+
+# Export Section
+st.header("Export")
+
+st.download_button(
+    label="Download PDF",
+    data=pdf_buffer,
+    file_name="aruco_grid.pdf",
+    mime="application/pdf",
+    type="primary",
+)
+
+# Footer
+st.divider()
+st.caption("ArUco Grid Generator - Generated with Streamlit")
