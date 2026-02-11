@@ -100,7 +100,7 @@ def generate_aruco_grid(data, low_res=False, draw_overlays=True):
     if show_ids:
         draw = ImageDraw.Draw(pil_img)
         font_size = (
-            min(10, marker_size_px // 8) if low_res else min(20, marker_size_px // 8)
+            min(12, marker_size_px // 7) if low_res else min(24, marker_size_px // 7)
         )
         try:
             font = ImageFont.truetype("arial.ttf", font_size)
@@ -198,8 +198,8 @@ def generate_aruco_grid(data, low_res=False, draw_overlays=True):
                 font=font,
             )
 
-    # Draw coordinate system if enabled
-    if show_coordsys:
+    # Draw coordinate system if enabled (only when drawing overlays)
+    if show_coordsys and draw_overlays:
         draw = ImageDraw.Draw(pil_img)
         cx = img_width_px // 2
         cy = img_height_px // 2

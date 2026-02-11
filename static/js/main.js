@@ -4,8 +4,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('grid-form');
     const previewImg = document.getElementById('preview-img');
     const generateBtn = document.getElementById('generate-btn');
-    const collapsibleToggle = document.querySelector('.collapsible-toggle');
-    const collapsibleBody = document.querySelector('.collapsible-body');
+    const coordsysSection = document.getElementById('coordsys-section');
+    const coordsysCheckbox = document.querySelector('input[name="show_coordsys"]');
 
     // Function to collect form data
     function getFormData() {
@@ -94,12 +94,19 @@ document.addEventListener('DOMContentLoaded', function() {
     form.addEventListener('change', updatePreview);
     generateBtn.addEventListener('click', generatePDF);
 
-    collapsibleToggle.addEventListener('click', function() {
-        console.log('Coordinate System section collapsed/expanded');
-        collapsibleBody.classList.toggle('hidden');
-        const arrow = document.getElementById('arrow');
-        arrow.textContent = collapsibleBody.classList.contains('hidden') ? '▶' : '▼';
+    // Toggle coordsys section visibility based on checkbox
+    coordsysCheckbox.addEventListener('change', function() {
+        if (coordsysCheckbox.checked) {
+            coordsysSection.classList.remove('hidden');
+        } else {
+            coordsysSection.classList.add('hidden');
+        }
     });
+
+    // Initialize coordsys section visibility based on checkbox state
+    if (!coordsysCheckbox.checked) {
+        coordsysSection.classList.add('hidden');
+    }
 
     // Initial preview
     updatePreview();

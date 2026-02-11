@@ -53,17 +53,15 @@
                     <label class="flex items-center mb-3"><input type="checkbox" name="show_params" checked class="mr-3">Parameters</label>
                     <label class="flex items-center mb-3"><input type="checkbox" name="show_coordsys" class="mr-3">Coordinate System</label>
                 </div>
-                <div class="mb-5 bg-gray-100 p-4 rounded-md border border-gray-200" id="coordsys-section">
-                    <div id="coordsys-content" class="collapsible-content">
-                        <h2 class="cursor-pointer select-none mt-0 text-lg text-gray-700 collapsible-toggle"><span id="arrow">▶</span> Coordinate System</h2>
-                        <div class="collapsible-body hidden mt-3">
-                            <label class="block mb-3">Translation X (mm): <input type="number" name="base_translation_x" value="0" step="0.1" class="w-full p-3 mt-2 box-border rounded border border-gray-300 transition focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"></label>
-                            <label class="block mb-3">Translation Y (mm): <input type="number" name="base_translation_y" value="0" step="0.1" class="w-full p-3 mt-2 box-border rounded border border-gray-300 transition focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"></label>
-                            <label class="block mb-3">Translation Z (mm): <input type="number" name="base_translation_z" value="0" step="0.1" class="w-full p-3 mt-2 box-border rounded border border-gray-300 transition focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"></label>
-                            <label class="block mb-3">Roll (deg): <input type="number" name="base_rotation_roll" value="0" step="0.1" class="w-full p-3 mt-2 box-border rounded border border-gray-300 transition focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"></label>
-                            <label class="block mb-3">Pitch (deg): <input type="number" name="base_rotation_pitch" value="0" step="0.1" class="w-full p-3 mt-2 box-border rounded border border-gray-300 transition focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"></label>
-                            <label class="block mb-3">Yaw (deg): <input type="number" name="base_rotation_yaw" value="0" step="0.1" class="w-full p-3 mt-2 box-border rounded border border-gray-300 transition focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"></label>
-                        </div>
+                <div class="mb-5 bg-gray-100 p-4 rounded-md border border-gray-200 hidden" id="coordsys-section">
+                    <h2 class="mt-0 text-lg text-gray-700">Coordinate System</h2>
+                    <div class="mt-3">
+                        <label class="block mb-3">Translation X (mm): <input type="number" name="base_translation_x" value="0" step="0.1" class="w-full p-3 mt-2 box-border rounded border border-gray-300 transition focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"></label>
+                        <label class="block mb-3">Translation Y (mm): <input type="number" name="base_translation_y" value="0" step="0.1" class="w-full p-3 mt-2 box-border rounded border border-gray-300 transition focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"></label>
+                        <label class="block mb-3">Translation Z (mm): <input type="number" name="base_translation_z" value="0" step="0.1" class="w-full p-3 mt-2 box-border rounded border border-gray-300 transition focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"></label>
+                        <label class="block mb-3">Roll (deg): <input type="number" name="base_rotation_roll" value="0" step="0.1" class="w-full p-3 mt-2 box-border rounded border border-gray-300 transition focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"></label>
+                        <label class="block mb-3">Pitch (deg): <input type="number" name="base_rotation_pitch" value="0" step="0.1" class="w-full p-3 mt-2 box-border rounded border border-gray-300 transition focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"></label>
+                        <label class="block mb-3">Yaw (deg): <input type="number" name="base_rotation_yaw" value="0" step="0.1" class="w-full p-3 mt-2 box-border rounded border border-gray-300 transition focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"></label>
                     </div>
                 </div>
                 <button type="button" id="generate-btn" class="bg-[#b1cb21] text-white px-6 py-3 border-none cursor-pointer text-base rounded transition hover:bg-[#a0b81f] w-full">Generate PDF</button>
