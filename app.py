@@ -2,7 +2,6 @@
 ArUco Grid Generator - Streamlit Version
 
 A web application for generating printable ArUco marker grids for computer vision and robotics.
-Migrated from Flask to Streamlit for improved maintainability and consistency.
 """
 
 import io
@@ -17,11 +16,6 @@ from reportlab.lib.pagesizes import A3, A4
 from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
 from scipy.spatial.transform import Rotation as R_scipy
-
-# -----------------------------------------------------------------------------
-# Core Functions (migrated from Flask app.py)
-# -----------------------------------------------------------------------------
-
 
 # Constants
 PT_TO_MM = 25.4 / 72  # Convert points to mm (72 points per inch)
@@ -74,6 +68,15 @@ def generate_aruco_grid(data, low_res=False, draw_overlays=True):
     # Get dictionary
     aruco_dict = cv2.aruco.getPredefinedDictionary(getattr(cv2.aruco, dictionary_name))
 
+    # Validate grid size against dictionary capacity
+    max_markers = 250  # All standard ArUco dictionaries have 250 markers
+    total_markers = rows * cols
+    if total_markers > max_markers:
+        raise ValueError(
+            f"Grid size ({rows}×{cols}={total_markers}) exceeds dictionary capacity ({max_markers}). "
+            f"Please reduce rows or columns."
+        )
+
     # Paper dimensions in mm
     width_mm, height_mm = get_page_dimensions(paper_size, orientation)
 
@@ -81,14 +84,13 @@ def generate_aruco_grid(data, low_res=False, draw_overlays=True):
     total_width_mm = cols * marker_size_mm + (cols - 1) * separation_mm
     total_height_mm = rows * marker_size_mm + (rows - 1) * separation_mm
 
-    # Auto-resize if needed
-    scale = 1.0
+    # Validate that grid fits on page
     if total_width_mm > width_mm or total_height_mm > height_mm:
-        scale = min(width_mm / total_width_mm, height_mm / total_height_mm)
-        marker_size_mm *= scale
-        separation_mm *= scale
-        total_width_mm *= scale
-        total_height_mm *= scale
+        raise ValueError(
+            f"Grid size ({total_width_mm:.1f}mm × {total_height_mm:.1f}mm) exceeds "
+            f"page size ({width_mm:.1f}mm × {height_mm:.1f}mm). "
+            f"Please reduce marker size, separation, rows, or columns, or use larger paper."
+        )
 
     # For preview, use low resolution
     dpi = 72 if low_res else 300
@@ -296,6 +298,15 @@ def generate_aruco_grid(data, low_res=False, draw_overlays=True):
         # Right
         draw.line((width - 1, 0, width - 1, height - 1), fill=grey, width=2)
 
+    # Apply vertical/horizontal scaling if not 100%
+    vertical_scale = data.get("vertical_scale", 100.0) / 100.0
+    horizontal_scale = data.get("horizontal_scale", 100.0) / 100.0
+
+    if vertical_scale != 1.0 or horizontal_scale != 1.0:
+        new_width = int(pil_img.width * horizontal_scale)
+        new_height = int(pil_img.height * vertical_scale)
+        pil_img = pil_img.resize((new_width, new_height), Image.LANCZOS)
+
     return pil_img
 
 
@@ -366,7 +377,7 @@ def generate_pdf(data):
     _ = data.get("show_coordsys", False)
     show_params = data.get("show_params", True)
 
-    # Generate high-res image
+    # Generate high-res image (already scaled based on vertical_scale/horizontal_scale)
     img = generate_aruco_grid(data, low_res=False, draw_overlays=False)
 
     # Paper size
@@ -380,8 +391,16 @@ def generate_pdf(data):
 
     width, height = pagesize
 
-    # Draw the image
-    c.drawInlineImage(img, 0, 0, width=width, height=height)
+    # Get image dimensions in points
+    img_width, img_height = img.size
+    pt_per_px = 72.0 / 300  # Convert pixels to points (image is 300 DPI)
+    img_width_pt = img_width * pt_per_px
+    img_height_pt = img_height * pt_per_px
+
+    # Draw the image centered on the page (user's scale is preserved)
+    x_offset = (width - img_width_pt) / 2
+    y_offset = (height - img_height_pt) / 2
+    c.drawInlineImage(img, x_offset, y_offset, width=img_width_pt, height=img_height_pt)
 
     # If show_scale, draw ruler
     if show_scale:
@@ -431,7 +450,11 @@ def pdf_to_preview_images(pdf_buffer, dpi=150):
 # -----------------------------------------------------------------------------
 
 # Page configuration
-st.set_page_config(page_title="ArUco Grid Generator", page_icon="camera", layout="wide")
+st.set_page_config(
+    page_title="ArUco Grid Generator",
+    page_icon="static/matchfavicon.png",
+    layout="wide",
+)
 
 # Main title
 st.title("ArUco Grid Generator")
@@ -460,8 +483,6 @@ with st.sidebar:
             index=1,
         )
 
-    st.divider()
-
     # Grid Dimensions Section
     with st.expander("Grid Dimensions", expanded=True):
         cols = st.number_input("Columns", min_value=1, value=5, step=1)
@@ -473,14 +494,29 @@ with st.sidebar:
             "Separation (mm)", min_value=1, value=10, step=1
         )
 
-    st.divider()
-
     # Display Options Section
-    st.subheader("Optional Information")
-    show_ids = st.checkbox("Marker IDs", value=True)
-    show_scale = st.checkbox("Scale Ruler", value=True)
-    show_params = st.checkbox("Parameters", value=True)
-    show_coordsys = st.checkbox("Coordinate System", value=False)
+    with st.expander("Optional Information", expanded=False):
+        show_ids = st.checkbox("Marker IDs", value=True)
+        show_scale = st.checkbox("Scale Ruler", value=True)
+        show_params = st.checkbox("Parameters", value=True)
+        show_coordsys = st.checkbox("Coordinate System", value=False)
+        col1, col2 = st.columns(2)
+        with col1:
+            horizontal_scale = st.number_input(
+                "Horizontal Scale (%)",
+                min_value=0.1,
+                value=100.0,
+                step=0.1,
+                format="%.1f",
+            )
+        with col2:
+            vertical_scale = st.number_input(
+                "Vertical Scale (%)",
+                min_value=0.1,
+                value=100.0,
+                step=0.1,
+                format="%.1f",
+            )
 
     # Coordinate System Section (conditionally visible)
     if show_coordsys:
@@ -517,13 +553,7 @@ with st.sidebar:
 
             st.caption("Transformation")
             st.code(
-                f"T = [[{T[0, 0]:.2f}, {T[0, 1]:.2f}, {T[0, 2]:.2f}, {T[0, 3]:.2f}],"
-            )
-            st.code(
-                f"    [{T[1, 0]:.2f}, {T[1, 1]:.2f}, {T[1, 2]:.2f}, {T[1, 3]:.2f}],"
-            )
-            st.code(
-                f"    [{T[2, 0]:.2f}, {T[2, 1]:.2f}, {T[2, 2]:.2f}, {T[2, 3]:.2f}]]"
+                f"T = [[{T[0, 0]:.2f}, {T[0, 1]:.2f}, {T[0, 2]:.2f}, {T[0, 3]:.2f}],\n[{T[1, 0]:.2f}, {T[1, 1]:.2f}, {T[1, 2]:.2f}, {T[1, 3]:.2f}],\n[{T[2, 0]:.2f}, {T[2, 1]:.2f}, {T[2, 2]:.2f}, {T[2, 3]:.2f}]]"
             )
             st.code(f"t = [{t_m[0]:.4f}, {t_m[1]:.4f}, {t_m[2]:.4f}]")
             st.code(f"q = [{quat[0]:.4f}, {quat[1]:.4f}, {quat[2]:.4f}, {quat[3]:.4f}]")
@@ -548,16 +578,72 @@ data = {
     "show_scale": show_scale,
     "show_params": show_params,
     "show_coordsys": show_coordsys,
+    "vertical_scale": vertical_scale,
+    "horizontal_scale": horizontal_scale,
     "base_translation": [base_translation_x, base_translation_y, base_translation_z],
     "base_rotation": [base_rotation_roll, base_rotation_pitch, base_rotation_yaw],
 }
 
 # Main content area
 
-# CSS for responsive preview that fits in window
+# CSS for responsive preview that fits in window and accent color
 st.markdown(
     """
     <style>
+    /* Set primary/accent color */
+    :root {
+        --primary-color: #b1cb21;
+        --secondary-color: #9eb81c;
+    }
+    
+    /* Primary button styling */
+    .stButton > button[data-testid="baseButton-primary"] {
+        background-color: #b1cb21 !important;
+        border-color: #b1cb21 !important;
+        color: white !important;
+    }
+    .stButton > button[data-testid="baseButton-primary"]:hover {
+        background-color: #9eb81c !important;
+        border-color: #9eb81c !important;
+        color: white !important;
+    }
+    
+    /* Input field focus borders */
+    .stTextInput > div > div:focus-within,
+    .stNumberInput > div > div:focus-within,
+    .stSelectbox > div > div:focus-within {
+        border-color: #b1cb21 !important;
+        box-shadow: 0 0 0 1px #b1cb21 !important;
+    }
+    
+    /* Checkbox accent color */
+    .stCheckbox > label > div[data-testid="stMarkdownContainer"] > p,
+    .stCheckbox svg[data-testid="stCheckboxSvg"] {
+        color: #b1cb21;
+    }
+    .stCheckbox svg[data-testid="stCheckboxSvg"] {
+        color: #b1cb21;
+    }
+    .stCheckbox input:checked + svg {
+        background-color: #b1cb21;
+        border-color: #b1cb21;
+    }
+    
+    /* Expander header hover */
+    .streamlit-expanderHeader:hover {
+        background-color: rgba(177, 203, 33, 0.1) !important;
+    }
+    
+    /* Divider color */
+    hr {
+        border-color: #b1cb21 !important;
+    }
+    
+    /* Code block border */
+    .stCodeBlock {
+        border-left-color: #b1cb21 !important;
+    }
+    
     div.stImage {
         max-height: 65vh !important;
         overflow: hidden;
@@ -574,16 +660,18 @@ st.markdown(
 )
 
 # Generate PDF and preview
-pdf_buffer = generate_pdf(data)
-preview_images = pdf_to_preview_images(pdf_buffer, dpi=150)
+with st.spinner("Generating PDF..."):
+    try:
+        pdf_buffer = generate_pdf(data)
+        preview_images = pdf_to_preview_images(pdf_buffer, dpi=150)
+    except ValueError as e:
+        st.error(str(e))
+        st.stop()
 
 if preview_images:
     st.image(
         preview_images[0], caption="Live Preview - ArUco Grid (PDF)", width="stretch"
     )
-
-# Export Section
-st.header("Export")
 
 st.download_button(
     label="Download PDF",
@@ -594,5 +682,12 @@ st.download_button(
 )
 
 # Footer
-st.divider()
-st.caption("ArUco Grid Generator - Generated with Streamlit")
+st.markdown(
+    """
+    <div style="text-align: center;">
+        ArUco Grid Generator - Generated with Streamlit 
+        <a href="https://www.match.uni-hannover.de" style="color: rgb(177, 203, 33);" target="_blank"> at match</a> 
+    </div>
+    """,
+    unsafe_allow_html=True,
+)

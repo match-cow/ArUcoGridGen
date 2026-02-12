@@ -2,14 +2,6 @@
 
 Web app for generating printable ArUco marker grids for computer vision and robotics.
 
-## Features
-
-- Custom grid parameters (paper size, ArUco dictionary, rows/columns, marker size, separation)
-- Live preview while adjusting settings
-- Optional overlays (IDs, scale ruler, parameters, coordinate system)
-- Robotics coordinate system with transformation matrices
-- High-resolution PDF export
-
 ## Quick Start
 
 ```bash
