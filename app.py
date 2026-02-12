@@ -1,17 +1,58 @@
+"""
+ArUco Grid Generator - Streamlit Version
+
+A web application for generating printable ArUco marker grids for computer vision and robotics.
+"""
+
 import io
 import math
 
 import cv2
 import numpy as np
-from flask import Flask, jsonify, render_template, request, send_file
+import streamlit as st
+from pdf2image import convert_from_bytes
 from PIL import Image, ImageDraw, ImageFont
 from reportlab.lib.pagesizes import A3, A4
 from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
 from scipy.spatial.transform import Rotation as R_scipy
 
+# Constants
+PT_TO_MM = 25.4 / 72  # Convert points to mm (72 points per inch)
+
+
+def get_page_dimensions(paper_size, orientation):
+    """Get page dimensions in mm using reportlab pagesizes."""
+    if paper_size == "A4":
+        pagesize = A4
+    else:  # A3
+        pagesize = A3
+
+    width_pt, height_pt = pagesize
+    width_mm = width_pt * PT_TO_MM
+    height_mm = height_pt * PT_TO_MM
+
+    if orientation == "portrait":
+        return width_mm, height_mm
+    else:  # landscape
+        return height_mm, width_mm
+
+
+def get_pagesize(paper_size, orientation):
+    """Get page dimensions in points for reportlab PDF generation."""
+    if paper_size == "A4":
+        pagesize = A4
+    else:  # A3
+        pagesize = A3
+
+    if orientation == "portrait":
+        return pagesize
+    else:  # landscape
+        return (pagesize[1], pagesize[0])
+
 
 def generate_aruco_grid(data, low_res=False, draw_overlays=True):
+    """Generate an ArUco grid image based on the provided parameters."""
     # Extract parameters
     dictionary_name = data.get("dictionary", "DICT_5X5_250")
     rows = data.get("rows", 5)
@@ -27,30 +68,29 @@ def generate_aruco_grid(data, low_res=False, draw_overlays=True):
     # Get dictionary
     aruco_dict = cv2.aruco.getPredefinedDictionary(getattr(cv2.aruco, dictionary_name))
 
+    # Validate grid size against dictionary capacity
+    max_markers = 250  # All standard ArUco dictionaries have 250 markers
+    total_markers = rows * cols
+    if total_markers > max_markers:
+        raise ValueError(
+            f"Grid size ({rows}×{cols}={total_markers}) exceeds dictionary capacity ({max_markers}). "
+            f"Please reduce rows or columns."
+        )
+
     # Paper dimensions in mm
-    if paper_size == "A4":
-        if orientation == "portrait":
-            width_mm, height_mm = 210, 297
-        else:
-            width_mm, height_mm = 297, 210
-    else:  # A3
-        if orientation == "portrait":
-            width_mm, height_mm = 297, 420
-        else:
-            width_mm, height_mm = 420, 297
+    width_mm, height_mm = get_page_dimensions(paper_size, orientation)
 
     # Calculate total grid size
     total_width_mm = cols * marker_size_mm + (cols - 1) * separation_mm
     total_height_mm = rows * marker_size_mm + (rows - 1) * separation_mm
 
-    # Auto-resize if needed
-    scale = 1.0
+    # Validate that grid fits on page
     if total_width_mm > width_mm or total_height_mm > height_mm:
-        scale = min(width_mm / total_width_mm, height_mm / total_height_mm)
-        marker_size_mm *= scale
-        separation_mm *= scale
-        total_width_mm *= scale
-        total_height_mm *= scale
+        raise ValueError(
+            f"Grid size ({total_width_mm:.1f}mm × {total_height_mm:.1f}mm) exceeds "
+            f"page size ({width_mm:.1f}mm × {height_mm:.1f}mm). "
+            f"Please reduce marker size, separation, rows, or columns, or use larger paper."
+        )
 
     # For preview, use low resolution
     dpi = 72 if low_res else 300
@@ -100,11 +140,11 @@ def generate_aruco_grid(data, low_res=False, draw_overlays=True):
     if show_ids:
         draw = ImageDraw.Draw(pil_img)
         font_size = (
-            min(10, marker_size_px // 8) if low_res else min(20, marker_size_px // 8)
+            min(12, marker_size_px // 7) if low_res else min(24, marker_size_px // 7)
         )
         try:
             font = ImageFont.truetype("arial.ttf", font_size)
-        except:
+        except OSError:
             font = ImageFont.load_default()
         marker_id = 0
         for r in range(rows):
@@ -156,7 +196,7 @@ def generate_aruco_grid(data, low_res=False, draw_overlays=True):
             font_size = 6
             try:
                 font = ImageFont.truetype("arial.ttf", font_size)
-            except:
+            except OSError:
                 font = ImageFont.load_default()
             left_x = img_width_px - 140
             right_x = img_width_px - 60
@@ -198,8 +238,8 @@ def generate_aruco_grid(data, low_res=False, draw_overlays=True):
                 font=font,
             )
 
-    # Draw coordinate system if enabled
-    if show_coordsys:
+    # Draw coordinate system if enabled (only when drawing overlays)
+    if show_coordsys and draw_overlays:
         draw = ImageDraw.Draw(pil_img)
         cx = img_width_px // 2
         cy = img_height_px // 2
@@ -207,7 +247,7 @@ def generate_aruco_grid(data, low_res=False, draw_overlays=True):
         font_size = 12
         try:
             font = ImageFont.truetype("arial.ttf", font_size)
-        except:
+        except OSError:
             font = ImageFont.load_default()
         # X axis (red, horizontal)
         draw.line(
@@ -258,20 +298,27 @@ def generate_aruco_grid(data, low_res=False, draw_overlays=True):
         # Right
         draw.line((width - 1, 0, width - 1, height - 1), fill=grey, width=2)
 
+    # Apply vertical/horizontal scaling if not 100%
+    vertical_scale = data.get("vertical_scale", 100.0) / 100.0
+    horizontal_scale = data.get("horizontal_scale", 100.0) / 100.0
+
+    if vertical_scale != 1.0 or horizontal_scale != 1.0:
+        new_width = int(pil_img.width * horizontal_scale)
+        new_height = int(pil_img.height * vertical_scale)
+        pil_img = pil_img.resize((new_width, new_height), Image.LANCZOS)
+
     return pil_img
 
 
 def calculate_transformation(data):
+    """Calculate transformation matrix from grid parameters."""
     paper_size = data.get("paper_size", "A4")
     orientation = data.get("orientation", "portrait")
     base_translation = data.get("base_translation", [0, 0, 0])
     base_rotation = data.get("base_rotation", [0, 0, 0])  # roll, pitch, yaw in degrees
 
     # Paper dimensions in mm
-    if paper_size == "A4":
-        width_mm, height_mm = (210, 297) if orientation == "portrait" else (297, 210)
-    else:  # A3
-        width_mm, height_mm = (297, 420) if orientation == "portrait" else (420, 297)
+    width_mm, height_mm = get_page_dimensions(paper_size, orientation)
 
     tx, ty, tz = base_translation
     roll, pitch, yaw = [math.radians(r) for r in base_rotation]
@@ -323,22 +370,20 @@ def calculate_transformation(data):
 
 
 def generate_pdf(data):
-    # Extract parameters
-    show_ids = data.get("show_ids", True)
+    """Generate a PDF file with the ArUco grid."""
+    # Extract parameters (unused but kept for consistency with data structure)
+    _ = data.get("show_ids", True)
     show_scale = data.get("show_scale", True)
-    show_coordsys = data.get("show_coordsys", False)
+    _ = data.get("show_coordsys", False)
     show_params = data.get("show_params", True)
 
-    # Generate high-res image
+    # Generate high-res image (already scaled based on vertical_scale/horizontal_scale)
     img = generate_aruco_grid(data, low_res=False, draw_overlays=False)
 
     # Paper size
     paper_size = data.get("paper_size", "A4")
     orientation = data.get("orientation", "portrait")
-    if paper_size == "A4":
-        pagesize = A4 if orientation == "portrait" else (A4[1], A4[0])
-    else:
-        pagesize = A3 if orientation == "portrait" else (A3[1], A3[0])
+    pagesize = get_pagesize(paper_size, orientation)
 
     # Create PDF
     buffer = io.BytesIO()
@@ -346,8 +391,16 @@ def generate_pdf(data):
 
     width, height = pagesize
 
-    # Draw the image
-    c.drawInlineImage(img, 0, 0, width=width, height=height)
+    # Get image dimensions in points
+    img_width, img_height = img.size
+    pt_per_px = 72.0 / 300  # Convert pixels to points (image is 300 DPI)
+    img_width_pt = img_width * pt_per_px
+    img_height_pt = img_height * pt_per_px
+
+    # Draw the image centered on the page (user's scale is preserved)
+    x_offset = (width - img_width_pt) / 2
+    y_offset = (height - img_height_pt) / 2
+    c.drawInlineImage(img, x_offset, y_offset, width=img_width_pt, height=img_height_pt)
 
     # If show_scale, draw ruler
     if show_scale:
@@ -387,31 +440,254 @@ def generate_pdf(data):
     return buffer
 
 
-app = Flask(__name__)
+def pdf_to_preview_images(pdf_buffer, dpi=150):
+    """Convert PDF buffer to PIL images for preview."""
+    pdf_buffer.seek(0)
+    images = convert_from_bytes(pdf_buffer.read(), dpi=dpi)
+    return images
 
 
-@app.route("/")
-def index():
-    return render_template("index.html")
+# -----------------------------------------------------------------------------
 
+# Page configuration
+st.set_page_config(
+    page_title="ArUco Grid Generator",
+    page_icon="static/matchfavicon.png",
+    layout="wide",
+)
 
-@app.route("/api/preview", methods=["POST"])
-def preview():
-    data = request.get_json()
-    # Generate low-res preview
-    img = generate_aruco_grid(data, low_res=True)
-    img_bytes = io.BytesIO()
-    img.save(img_bytes, format="PNG")
-    img_bytes.seek(0)
-    return send_file(img_bytes, mimetype="image/png")
+# Main title
+st.title("ArUco Grid Generator")
 
+# Sidebar for configuration
+with st.sidebar:
+    # Load branding logo
+    match_logo = Image.open("static/match.png")
+    st.image(match_logo, width=60)
 
-@app.route("/api/generate", methods=["POST"])
-def generate():
-    data = request.get_json()
-    pdf_buffer = generate_pdf(data)
-    return send_file(pdf_buffer, mimetype="application/pdf")
+    st.header("Configuration")
 
+    # Paper Settings Section
+    with st.expander("Page and Layout", expanded=True):
+        paper_size = st.selectbox("Paper Size", ["A4", "A3"], index=0)
+        orientation = st.selectbox("Orientation", ["portrait", "landscape"], index=0)
+        dictionary = st.selectbox(
+            "ArUco Dictionary",
+            [
+                "DICT_4X4_250",
+                "DICT_5X5_250",
+                "DICT_6X6_250",
+                "DICT_7X7_250",
+                "DICT_ARUCO_ORIGINAL",
+            ],
+            index=1,
+        )
 
-if __name__ == "__main__":
-    app.run(debug=True)
+    # Grid Dimensions Section
+    with st.expander("Grid Dimensions", expanded=True):
+        cols = st.number_input("Columns", min_value=1, value=5, step=1)
+        rows = st.number_input("Rows", min_value=1, value=7, step=1)
+        marker_size_mm = st.number_input(
+            "Marker Size (mm)", min_value=1, value=30, step=1
+        )
+        separation_mm = st.number_input(
+            "Separation (mm)", min_value=1, value=10, step=1
+        )
+
+    # Display Options Section
+    with st.expander("Optional Information", expanded=False):
+        show_ids = st.checkbox("Marker IDs", value=True)
+        show_scale = st.checkbox("Scale Ruler", value=True)
+        show_params = st.checkbox("Parameters", value=True)
+        show_coordsys = st.checkbox("Coordinate System", value=False)
+        col1, col2 = st.columns(2)
+        with col1:
+            horizontal_scale = st.number_input(
+                "Horizontal Scale (%)",
+                min_value=0.1,
+                value=100.0,
+                step=0.1,
+                format="%.1f",
+            )
+        with col2:
+            vertical_scale = st.number_input(
+                "Vertical Scale (%)",
+                min_value=0.1,
+                value=100.0,
+                step=0.1,
+                format="%.1f",
+            )
+
+    # Coordinate System Section (conditionally visible)
+    if show_coordsys:
+        with st.expander("Coordinate System", expanded=True):
+            base_translation_x = st.number_input(
+                "Translation X (mm)", value=0.0, step=0.1
+            )
+            base_translation_y = st.number_input(
+                "Translation Y (mm)", value=0.0, step=0.1
+            )
+            base_translation_z = st.number_input(
+                "Translation Z (mm)", value=0.0, step=0.1
+            )
+            base_rotation_roll = st.number_input("Roll (deg)", value=0.0, step=0.1)
+            base_rotation_pitch = st.number_input("Pitch (deg)", value=0.0, step=0.1)
+            base_rotation_yaw = st.number_input("Yaw (deg)", value=0.0, step=0.1)
+
+            # Calculate and display transformation info
+            data_for_calc = {
+                "paper_size": paper_size,
+                "orientation": orientation,
+                "base_translation": [
+                    base_translation_x,
+                    base_translation_y,
+                    base_translation_z,
+                ],
+                "base_rotation": [
+                    base_rotation_roll,
+                    base_rotation_pitch,
+                    base_rotation_yaw,
+                ],
+            }
+            T, t_m, quat = calculate_transformation(data_for_calc)
+
+            st.caption("Transformation")
+            st.code(
+                f"T = [[{T[0, 0]:.2f}, {T[0, 1]:.2f}, {T[0, 2]:.2f}, {T[0, 3]:.2f}],\n[{T[1, 0]:.2f}, {T[1, 1]:.2f}, {T[1, 2]:.2f}, {T[1, 3]:.2f}],\n[{T[2, 0]:.2f}, {T[2, 1]:.2f}, {T[2, 2]:.2f}, {T[2, 3]:.2f}]]"
+            )
+            st.code(f"t = [{t_m[0]:.4f}, {t_m[1]:.4f}, {t_m[2]:.4f}]")
+            st.code(f"q = [{quat[0]:.4f}, {quat[1]:.4f}, {quat[2]:.4f}, {quat[3]:.4f}]")
+    else:
+        base_translation_x = 0.0
+        base_translation_y = 0.0
+        base_translation_z = 0.0
+        base_rotation_roll = 0.0
+        base_rotation_pitch = 0.0
+        base_rotation_yaw = 0.0
+
+# Build data dictionary from inputs
+data = {
+    "paper_size": paper_size,
+    "orientation": orientation,
+    "dictionary": dictionary,
+    "rows": rows,
+    "cols": cols,
+    "marker_size_mm": marker_size_mm,
+    "separation_mm": separation_mm,
+    "show_ids": show_ids,
+    "show_scale": show_scale,
+    "show_params": show_params,
+    "show_coordsys": show_coordsys,
+    "vertical_scale": vertical_scale,
+    "horizontal_scale": horizontal_scale,
+    "base_translation": [base_translation_x, base_translation_y, base_translation_z],
+    "base_rotation": [base_rotation_roll, base_rotation_pitch, base_rotation_yaw],
+}
+
+# Main content area
+
+# CSS for responsive preview that fits in window and accent color
+st.markdown(
+    """
+    <style>
+    /* Set primary/accent color */
+    :root {
+        --primary-color: #b1cb21;
+        --secondary-color: #9eb81c;
+    }
+    
+    /* Primary button styling */
+    .stButton > button[data-testid="baseButton-primary"] {
+        background-color: #b1cb21 !important;
+        border-color: #b1cb21 !important;
+        color: white !important;
+    }
+    .stButton > button[data-testid="baseButton-primary"]:hover {
+        background-color: #9eb81c !important;
+        border-color: #9eb81c !important;
+        color: white !important;
+    }
+    
+    /* Input field focus borders */
+    .stTextInput > div > div:focus-within,
+    .stNumberInput > div > div:focus-within,
+    .stSelectbox > div > div:focus-within {
+        border-color: #b1cb21 !important;
+        box-shadow: 0 0 0 1px #b1cb21 !important;
+    }
+    
+    /* Checkbox accent color */
+    .stCheckbox > label > div[data-testid="stMarkdownContainer"] > p,
+    .stCheckbox svg[data-testid="stCheckboxSvg"] {
+        color: #b1cb21;
+    }
+    .stCheckbox svg[data-testid="stCheckboxSvg"] {
+        color: #b1cb21;
+    }
+    .stCheckbox input:checked + svg {
+        background-color: #b1cb21;
+        border-color: #b1cb21;
+    }
+    
+    /* Expander header hover */
+    .streamlit-expanderHeader:hover {
+        background-color: rgba(177, 203, 33, 0.1) !important;
+    }
+    
+    /* Divider color */
+    hr {
+        border-color: #b1cb21 !important;
+    }
+    
+    /* Code block border */
+    .stCodeBlock {
+        border-left-color: #b1cb21 !important;
+    }
+    
+    div.stImage {
+        max-height: 65vh !important;
+        overflow: hidden;
+    }
+    div.stImage img {
+        max-height: 65vh;
+        object-fit: contain;
+        width: 100% !important;
+        height: auto !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+# Generate PDF and preview
+with st.spinner("Generating PDF..."):
+    try:
+        pdf_buffer = generate_pdf(data)
+        preview_images = pdf_to_preview_images(pdf_buffer, dpi=150)
+    except ValueError as e:
+        st.error(str(e))
+        st.stop()
+
+if preview_images:
+    st.image(
+        preview_images[0], caption="Live Preview - ArUco Grid (PDF)", width="stretch"
+    )
+
+st.download_button(
+    label="Download PDF",
+    data=pdf_buffer,
+    file_name="aruco_grid.pdf",
+    mime="application/pdf",
+    type="primary",
+)
+
+# Footer
+st.markdown(
+    """
+    <div style="text-align: center;">
+        ArUco Grid Generator - Generated with Streamlit 
+        <a href="https://www.match.uni-hannover.de" style="color: rgb(177, 203, 33);" target="_blank"> at match</a> 
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
