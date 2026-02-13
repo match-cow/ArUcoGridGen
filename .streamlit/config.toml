@@ -1,12 +1,10 @@
 [server]
 headless = true
-enableCORS = false
+enableCORS = true
 enableXsrfProtection = true
-serverRunOnSave = false
 
 [browser]
 gatherUsageStats = false
-toolbarMode = "viewer"
 
 [theme]
 primaryColor = "rgb(177, 203, 33)"
@@ -14,3 +12,9 @@ backgroundColor = "#424242"
 secondaryBackgroundColor = "#2e2e2e"
 textColor = "#fcfcfc"
 font = "sans serif"
+
+[client]
+toolbarMode = "minimal"
+
+[ui]
+hideTopBar = true

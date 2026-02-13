@@ -4,6 +4,7 @@ ArUco Grid Generator - Streamlit Version
 A web application for generating printable ArUco marker grids for computer vision and robotics.
 """
 
+import hashlib
 import io
 import math
 import os
@@ -36,6 +37,32 @@ PAPER_SIZES = {
     "Letter": letter,
     "Legal": legal,
 }
+
+# Default settings for dummy preview
+DEFAULT_SETTINGS = {
+    "paper_size": "A4",
+    "orientation": "portrait",
+    "dictionary": "DICT_5X5_250",
+    "rows": 7,
+    "cols": 5,
+    "marker_size_mm": 30,
+    "separation_mm": 10,
+    "show_ids": True,
+    "show_scale": True,
+    "show_params": True,
+    "show_coordsys": False,
+    "vertical_scale": 100.0,
+    "horizontal_scale": 100.0,
+    "marker_id_font_size": 24,
+}
+
+
+def get_settings_hash(data: Dict[str, Any]) -> str:
+    """Get a hash of settings to detect changes."""
+    # Sort keys for consistent hashing
+    sorted_items = sorted(data.items())
+    hash_str = str(sorted_items)
+    return hashlib.md5(hash_str.encode()).hexdigest()
 
 
 def get_page_dimensions(paper_size: str, orientation: str) -> Tuple[float, float]:
@@ -447,13 +474,34 @@ if os.path.exists(css_path):
     with open(css_path, "r") as f:
         st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
+# Initialize session state for persistent preview
+if "last_valid_preview" not in st.session_state:
+    st.session_state.last_valid_preview = None
+if "last_valid_pdf" not in st.session_state:
+    st.session_state.last_valid_pdf = None
+if "last_settings_hash" not in st.session_state:
+    st.session_state.last_settings_hash = None
+if "toast_message" not in st.session_state:
+    st.session_state.toast_message = None
+if "show_toast" not in st.session_state:
+    st.session_state.show_toast = False
+
+
+# Function to generate dummy preview from default settings
+@st.cache_data
+def generate_dummy_preview() -> Image.Image:
+    """Generate a preview image using default settings for placeholder."""
+    default_data = DEFAULT_SETTINGS.copy()
+    return generate_aruco_grid(default_data, low_res=True, draw_overlays=True)
+
+
 st.title("ArUco Grid Generator")
 
 # Sidebar for configuration
 with st.sidebar:
     match_logo = _load_image_safe(DEFAULT_LOGO_PATH, 60)
     if match_logo:
-        st.image(match_logo, width=60)
+        st.image(match_logo, width="stretch")
 
     st.header("Configuration")
 
@@ -618,26 +666,105 @@ if show_coordsys:
     ]
     data["base_rotation"] = [base_rotation_roll, base_rotation_pitch, base_rotation_yaw]
 
+# Compute settings hash to detect changes
+current_hash = get_settings_hash(data)
+
+# Check if settings changed - if so, we'll keep showing old preview during generation
+settings_changed = st.session_state.last_settings_hash != current_hash
+
 # Generate PDF and preview
+current_error = None
+preview_images = None
+pdf_buffer = None
+
 try:
     pdf_buffer = generate_pdf(data)
     preview_images = pdf_to_preview_images(pdf_buffer, dpi=150)
-except ValueError as e:
-    st.error(str(e))
-    st.stop()
 
-if preview_images:
-    st.image(
-        preview_images[0], caption="Live Preview - ArUco Grid (PDF)", width="stretch"
+    # Store successful preview in session state
+    st.session_state.last_valid_preview = preview_images[0] if preview_images else None
+    st.session_state.last_valid_pdf = pdf_buffer
+    st.session_state.last_settings_hash = current_hash
+
+    # Clear any previous toast
+    st.session_state.show_toast = False
+    st.session_state.toast_message = None
+
+except ValueError as e:
+    # Store error for toast display, but keep showing previous preview
+    current_error = str(e)
+    st.session_state.toast_message = current_error
+    st.session_state.show_toast = True
+    # Keep using last valid preview and PDF
+    preview_images = (
+        [st.session_state.last_valid_preview]
+        if st.session_state.last_valid_preview
+        else None
+    )
+    pdf_buffer = st.session_state.last_valid_pdf
+
+# Determine which preview to show
+display_preview = None
+if preview_images and preview_images[0] is not None:
+    display_preview = preview_images[0]
+elif st.session_state.last_valid_preview is not None:
+    display_preview = st.session_state.last_valid_preview
+else:
+    # Generate dummy preview for first load
+    display_preview = generate_dummy_preview()
+
+# Determine if we should show blur effect (during generation or on error)
+show_blur = settings_changed or (current_error is not None)
+
+# Build the preview display with optional toast
+if display_preview is not None:
+    # Convert PIL Image to base64 for HTML display
+    import base64
+    from io import BytesIO
+
+    img_buffer = BytesIO()
+    display_preview.save(img_buffer, format="PNG")
+    img_base64 = base64.b64encode(img_buffer.getvalue()).decode()
+
+    # Build toast HTML if there's an error
+    toast_html = ""
+    if st.session_state.show_toast and st.session_state.toast_message:
+        toast_html = f"""
+        <div class="toast-overlay">
+            <span class="toast-icon">⚠️</span>
+            <span class="toast-message">{st.session_state.toast_message}</span>
+        </div>
+        """
+
+    # Render preview with HTML
+    st.markdown(
+        f"""
+        <div class="preview-container">
+            <img src="data:image/png;base64,{img_base64}" 
+                 alt="ArUco Grid Preview">
+            {toast_html}
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
-st.download_button(
-    label="Download PDF",
-    data=pdf_buffer,
-    file_name="aruco_grid.pdf",
-    mime="application/pdf",
-    type="primary",
-)
+st.markdown("<br>", unsafe_allow_html=True)
+
+if pdf_buffer is not None:
+    # Use empty columns on the sides to squeeze the middle column
+    # [3, 2, 3] usually creates a nice medium-sized button
+    col1, col2, col3 = st.columns([4, 1, 4])
+
+    with col2:
+        st.download_button(
+            label="**Download PDF**",
+            data=pdf_buffer,
+            file_name="aruco_grid.pdf",
+            mime="application/pdf",
+            type="primary",
+            width="stretch",  # This fills the (now smaller) middle column
+        )
+
 
 st.markdown(
     """

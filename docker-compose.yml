@@ -1,6 +1,6 @@
 services:
   web:
-    build: .
+    image: ghcr.io/match-cow/arucogridgen:main
     ports:
       - "8501:8501"
     volumes:
