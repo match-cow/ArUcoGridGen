@@ -16,7 +16,7 @@ Open http://localhost:8501 in your browser.
 ## Docker
 
 ```bash
-docker-compose up --build
+docker compose up --build
 ```
 
 Access at http://localhost:8501

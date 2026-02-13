@@ -1,0 +1,72 @@
+/* ArUco Grid Generator - Custom Styles */
+
+/* Set primary/accent color */
+:root {
+    --primary-color: #b1cb21;
+    --secondary-color: #9eb81c;
+}
+
+/* Primary button styling */
+.stButton > button[data-testid="baseButton-primary"] {
+    background-color: #b1cb21 !important;
+    border-color: #b1cb21 !important;
+    color: white !important;
+}
+.stButton > button[data-testid="baseButton-primary"]:hover {
+    background-color: #9eb81c !important;
+    border-color: #9eb81c !important;
+    color: white !important;
+}
+
+/* Input field focus borders - target only the input element, not button containers */
+.stTextInput > div > div:focus-within,
+.stSelectbox > div > div:focus-within {
+    border-color: #b1cb21 !important;
+    box-shadow: 0 0 0 1px #b1cb21 !important;
+}
+
+/* Number input - only style the actual input, not the button group */
+.stNumberInput > div > div > div > input:focus {
+    border-color: #b1cb21 !important;
+    box-shadow: 0 0 0 1px #b1cb21 !important;
+}
+
+/* Checkbox accent color */
+.stCheckbox > label > div[data-testid="stMarkdownContainer"] > p,
+.stCheckbox svg[data-testid="stCheckboxSvg"] {
+    color: #b1cb21;
+}
+.stCheckbox svg[data-testid="stCheckboxSvg"] {
+    color: #b1cb21;
+}
+.stCheckbox input:checked + svg {
+    background-color: #b1cb21;
+    border-color: #b1cb21;
+}
+
+/* Expander header hover */
+.streamlit-expanderHeader:hover {
+    background-color: rgba(177, 203, 33, 0.1) !important;
+}
+
+/* Divider color */
+hr {
+    border-color: #b1cb21 !important;
+}
+
+/* Code block border */
+.stCodeBlock {
+    border-left-color: #b1cb21 !important;
+}
+
+/* Preview image sizing */
+div.stImage {
+    max-height: 65vh !important;
+    overflow: hidden;
+}
+div.stImage img {
+    max-height: 65vh;
+    object-fit: contain;
+    width: 100% !important;
+    height: auto !important;
+}

@@ -1,6 +1,12 @@
 [server]
 headless = true
-fileWatcherType = "poll"
+enableCORS = false
+enableXsrfProtection = true
+serverRunOnSave = false
+
+[browser]
+gatherUsageStats = false
+toolbarMode = "viewer"
 
 [theme]
 primaryColor = "rgb(177, 203, 33)"
