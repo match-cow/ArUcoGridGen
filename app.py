@@ -6,8 +6,10 @@ A web application for generating printable ArUco marker grids for computer visio
 
 import hashlib
 import io
+import json
 import math
 import os
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional, Tuple
 
 import cv2
@@ -442,6 +444,102 @@ def generate_pdf(data: Dict[str, Any]) -> io.BytesIO:
 
 
 @st.cache_data
+def generate_json_config(data: Dict[str, Any]) -> str:
+    """Generate a JSON configuration string from grid parameters.
+
+    The JSON contains all settings, computed grid information, and transformation
+    data for use by external applications.
+    """
+    # Build settings section
+    settings = {
+        "paper_size": data.get("paper_size", "A4"),
+        "orientation": data.get("orientation", "portrait"),
+        "dictionary": data.get("dictionary", "DICT_5X5_250"),
+        "rows": data.get("rows", 5),
+        "cols": data.get("cols", 7),
+        "marker_size_mm": data.get("marker_size_mm", 30),
+        "separation_mm": data.get("separation_mm", 10),
+        "show_ids": data.get("show_ids", True),
+        "show_scale": data.get("show_scale", True),
+        "show_params": data.get("show_params", True),
+        "show_coordsys": data.get("show_coordsys", False),
+        "vertical_scale": data.get("vertical_scale", 100.0),
+        "horizontal_scale": data.get("horizontal_scale", 100.0),
+        "marker_id_font_size": data.get("marker_id_font_size", 24),
+    }
+
+    # Build grid_info section
+    width_mm, height_mm = get_page_dimensions(
+        settings["paper_size"], settings["orientation"]
+    )
+    marker_size_mm = settings["marker_size_mm"]
+    separation_mm = settings["separation_mm"]
+    rows = settings["rows"]
+    cols = settings["cols"]
+
+    total_width_mm = cols * marker_size_mm + (cols - 1) * separation_mm
+    total_height_mm = rows * marker_size_mm + (rows - 1) * separation_mm
+
+    # Calculate marker positions (center of each marker, from top-left origin)
+    offset_x = (width_mm - total_width_mm) / 2
+    offset_y = (height_mm - total_height_mm) / 2
+
+    marker_positions = []
+    marker_ids = []
+    marker_id = 0
+    for r in range(rows):
+        for c in range(cols):
+            x_mm = offset_x + c * (marker_size_mm + separation_mm) + marker_size_mm / 2
+            y_mm = offset_y + r * (marker_size_mm + separation_mm) + marker_size_mm / 2
+            marker_positions.append(
+                {
+                    "id": marker_id,
+                    "row": r,
+                    "col": c,
+                    "x_mm": round(x_mm, 2),
+                    "y_mm": round(y_mm, 2),
+                }
+            )
+            marker_ids.append(marker_id)
+            marker_id += 1
+
+    grid_info = {
+        "page_width_mm": round(width_mm, 2),
+        "page_height_mm": round(height_mm, 2),
+        "total_grid_width_mm": round(total_width_mm, 2),
+        "total_grid_height_mm": round(total_height_mm, 2),
+        "total_markers": rows * cols,
+        "marker_ids": marker_ids,
+        "marker_positions_mm": marker_positions,
+    }
+
+    # Build transformation section
+    show_coordsys = data.get("show_coordsys", False)
+    transformation = {
+        "enabled": show_coordsys,
+        "base_translation_mm": data.get("base_translation", [0.0, 0.0, 0.0]),
+        "base_rotation_deg": data.get("base_rotation", [0.0, 0.0, 0.0]),
+    }
+
+    if show_coordsys:
+        T, t_m, quat = calculate_transformation(data)
+        transformation["matrix_4x4"] = T.tolist()
+        transformation["translation_m"] = t_m.tolist()
+        transformation["quaternion_xyzw"] = quat.tolist()
+
+    # Assemble final JSON
+    config = {
+        "version": "1.0",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "settings": settings,
+        "grid_info": grid_info,
+        "transformation": transformation,
+    }
+
+    return json.dumps(config, indent=2)
+
+
+@st.cache_data
 def pdf_to_preview_images(pdf_buffer: io.BytesIO, dpi: int = 150) -> list:
     """Convert PDF buffer to PIL images for preview."""
     pdf_buffer.seek(0)
@@ -495,7 +593,9 @@ def generate_dummy_preview() -> Image.Image:
     return generate_aruco_grid(default_data, low_res=True, draw_overlays=True)
 
 
-st.title("ArUco Grid Generator")
+st.markdown(
+    "<h1 style='text-align: center;'>ArUco Grid Generator</h1>", unsafe_allow_html=True
+)
 
 # Sidebar for configuration
 with st.sidebar:
@@ -765,14 +865,16 @@ if pdf_buffer is not None:
             width="stretch",  # This fills the (now smaller) middle column
         )
 
+    # Add JSON download button
+    json_config = generate_json_config(data)
+    col1, col2, col3 = st.columns([4, 1, 4])
 
-st.markdown(
-    """
-    <div style="text-align: center;">
-        ArUco Grid Generator - Generated with Streamlit
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
-
-# Removed st.rerun() - it was causing infinite refresh loop in Docker
+    with col2:
+        st.download_button(
+            label="Download JSON",
+            data=json_config,
+            file_name="aruco_grid_config.json",
+            mime="application/json",
+            type="secondary",
+            width="stretch",
+        )
