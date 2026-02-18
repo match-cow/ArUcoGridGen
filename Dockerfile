@@ -5,10 +5,15 @@ RUN apt-get update && apt-get install -y poppler-utils && rm -rf /var/lib/apt/li
 
 WORKDIR /app
 
-COPY . .
+# Copy and install dependencies first (for Docker layer caching)
+COPY pyproject.toml ./
+RUN uv pip install --system -r pyproject.toml
 
-RUN uv pip install --system .
+# Copy application files
+COPY app.py ./
+COPY static/ ./static/
+COPY .streamlit/ ./.streamlit/
 
 EXPOSE 8501
 
-CMD ["streamlit", "run", "app.py", "--server.address", "0.0.0.0"]
+CMD ["streamlit", "run", "app.py"]

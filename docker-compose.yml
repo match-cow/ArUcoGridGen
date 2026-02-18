@@ -1,5 +1,6 @@
 services:
   arucogridgen:
+    container_name: arucogridgen
     image: ghcr.io/match-cow/arucogridgen:main
     ports:
       - "8501:8501"
