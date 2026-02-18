@@ -1350,8 +1350,6 @@ with st.sidebar:
                 ],
                 index=5,
             )
-
-        with st.expander("Grid Dimensions", expanded=True):
             cols = st.number_input(
                 "Columns", min_value=1, max_value=MAX_GRID_SIZE, value=5, step=1
             )
