@@ -296,44 +296,6 @@ def generate_aruco_grid(
                 font=font,
             )
 
-    if show_coordsys and draw_overlays:
-        draw = ImageDraw.Draw(pil_img)
-        cx = img_width_px // 2
-        cy = img_height_px // 2
-        axis_length = 50
-        font_size = 12
-        font = _get_font(font_size)
-
-        draw.line(
-            (cx - axis_length, cy, cx + axis_length, cy), fill=(255, 0, 0), width=2
-        )
-        draw.line(
-            (cx + axis_length, cy, cx + axis_length - 5, cy - 3),
-            fill=(255, 0, 0),
-            width=2,
-        )
-        draw.line(
-            (cx + axis_length, cy, cx + axis_length - 5, cy + 3),
-            fill=(255, 0, 0),
-            width=2,
-        )
-        draw.text((cx + axis_length + 5, cy - 10), "X", fill=(255, 0, 0), font=font)
-
-        draw.line(
-            (cx, cy - axis_length, cx, cy + axis_length), fill=(0, 255, 0), width=2
-        )
-        draw.line(
-            (cx, cy - axis_length, cx - 3, cy - axis_length + 5),
-            fill=(0, 255, 0),
-            width=2,
-        )
-        draw.line(
-            (cx, cy - axis_length, cx + 3, cy - axis_length + 5),
-            fill=(0, 255, 0),
-            width=2,
-        )
-        draw.text((cx + 5, cy - axis_length - 15), "Y", fill=(0, 255, 0), font=font)
-
     if low_res:
         _draw_low_res_border(pil_img)
 
@@ -344,6 +306,17 @@ def generate_aruco_grid(
         new_width = int(pil_img.width * horizontal_scale)
         new_height = int(pil_img.height * vertical_scale)
         pil_img = pil_img.resize((new_width, new_height), Image.LANCZOS)
+        # Update dimensions after scaling for coordinate system
+        img_width_px = new_width
+        img_height_px = new_height
+
+    # Draw coordinate system AFTER scaling so it's always on top and properly visible
+    if show_coordsys and draw_overlays:
+        coordsys_size_mm = data.get("coordsys_size", 50)
+        coordsys_thickness_mm = data.get("coordsys_thickness", 1.0)
+        coordsys_size_px = int(coordsys_size_mm * px_per_mm)
+        coordsys_thickness_px = max(1, int(coordsys_thickness_mm * px_per_mm))
+        _draw_coordinate_system(pil_img, img_width_px, img_height_px, coordsys_size_px, coordsys_thickness_px)
 
     return pil_img
 
@@ -370,6 +343,7 @@ def generate_charuco_board(
     orientation = data.get("orientation", "portrait")
     show_scale = data.get("show_scale", True)
     show_params = data.get("show_params", True)
+    show_coordsys = data.get("show_coordsys", False)
 
     # DEBUG: Log key parameters that affect board generation
     logger.info(
@@ -601,6 +575,17 @@ def generate_charuco_board(
         new_width = int(pil_img.width * horizontal_scale)
         new_height = int(pil_img.height * vertical_scale)
         pil_img = pil_img.resize((new_width, new_height), Image.LANCZOS)
+        # Update dimensions after scaling for coordinate system
+        img_width_px = new_width
+        img_height_px = new_height
+
+    # Draw coordinate system AFTER scaling so it's always on top and properly visible
+    if show_coordsys and draw_overlays:
+        coordsys_size_mm = data.get("coordsys_size", 50)
+        coordsys_thickness_mm = data.get("coordsys_thickness", 1.0)
+        coordsys_size_px = int(coordsys_size_mm * px_per_mm)
+        coordsys_thickness_px = max(1, int(coordsys_thickness_mm * px_per_mm))
+        _draw_coordinate_system(pil_img, img_width_px, img_height_px, coordsys_size_px, coordsys_thickness_px)
 
     return pil_img
 
@@ -617,6 +602,7 @@ def generate_checkerboard(
     orientation = data.get("orientation", "portrait")
     show_scale = data.get("show_scale", True)
     show_params = data.get("show_params", True)
+    show_coordsys = data.get("show_coordsys", False)
 
     width_mm, height_mm = get_page_dimensions(paper_size, orientation)
 
@@ -721,6 +707,17 @@ def generate_checkerboard(
         new_width = int(pil_img.width * horizontal_scale)
         new_height = int(pil_img.height * vertical_scale)
         pil_img = pil_img.resize((new_width, new_height), Image.LANCZOS)
+        # Update dimensions after scaling for coordinate system
+        img_width_px = new_width
+        img_height_px = new_height
+
+    # Draw coordinate system AFTER scaling so it's always on top and properly visible
+    if show_coordsys and draw_overlays:
+        coordsys_size_mm = data.get("coordsys_size", 50)
+        coordsys_thickness_mm = data.get("coordsys_thickness", 1.0)
+        coordsys_size_px = int(coordsys_size_mm * px_per_mm)
+        coordsys_thickness_px = max(1, int(coordsys_thickness_mm * px_per_mm))
+        _draw_coordinate_system(pil_img, img_width_px, img_height_px, coordsys_size_px, coordsys_thickness_px)
 
     return pil_img
 
@@ -770,6 +767,89 @@ def _draw_low_res_border(pil_img: Image.Image) -> None:
     draw.line((width - 1, 0, width - 1, height - 1), fill=grey, width=2)
 
 
+def _draw_coordinate_system(pil_img: Image.Image, img_width_px: int, img_height_px: int, total_size: int = 50, axis_width: int = 2) -> None:
+    """Draw a coordinate system overlay on the image.
+    
+    Draws X (red), Y (green) axes at the center of the image with a white
+    background to ensure visibility over any underlying grid pattern.
+    A blue circle indicates Z-axis pointing out of the image plane.
+    
+    Args:
+        pil_img: PIL Image to draw on
+        img_width_px: Image width in pixels
+        img_height_px: Image height in pixels
+        total_size: Total size of the white background square in pixels (default: 50)
+        axis_width: Width/thickness of the axes in pixels (default: 2)
+    """
+    draw = ImageDraw.Draw(pil_img)
+    cx = img_width_px // 2
+    cy = img_height_px // 2
+    
+    # Axis length is half of total size (axes extend from center)
+    axis_length = total_size // 2
+    
+    # Scale arrow head size based on axis length and thickness
+    # Ensure arrows remain complete when thickness increases
+    arrow_size = max(axis_width * 3, axis_length // 8)
+
+    # Draw a white background behind the coordinate system to make it clearly visible
+    # This ensures the axes stand out in front of the grid markers
+    bg_padding = axis_width * 2
+    bg_box = (
+        cx - axis_length - bg_padding,
+        cy - axis_length - bg_padding,
+        cx + axis_length + bg_padding,
+        cy + axis_length + bg_padding,
+    )
+    draw.rectangle(bg_box, fill=(255, 255, 255))
+
+    # Draw X axis (red)
+    draw.line(
+        (cx - axis_length, cy, cx + axis_length, cy), fill=(255, 0, 0), width=axis_width
+    )
+    # X arrow head
+    draw.line(
+        (cx + axis_length, cy, cx + axis_length - arrow_size, cy - arrow_size // 2),
+        fill=(255, 0, 0),
+        width=axis_width,
+    )
+    draw.line(
+        (cx + axis_length, cy, cx + axis_length - arrow_size, cy + arrow_size // 2),
+        fill=(255, 0, 0),
+        width=axis_width,
+    )
+
+    # Draw Y axis (green)
+    draw.line(
+        (cx, cy - axis_length, cx, cy + axis_length), fill=(0, 255, 0), width=axis_width
+    )
+    # Y arrow head
+    draw.line(
+        (cx, cy - axis_length, cx - arrow_size // 2, cy - axis_length + arrow_size),
+        fill=(0, 255, 0),
+        width=axis_width,
+    )
+    draw.line(
+        (cx, cy - axis_length, cx + arrow_size // 2, cy - axis_length + arrow_size),
+        fill=(0, 255, 0),
+        width=axis_width,
+    )
+
+    # Draw Z axis indicator (blue circle at origin)
+    # The circle indicates Z pointing out of the image plane (towards viewer)
+    z_circle_radius = max(axis_width * 2, axis_length // 10)
+    draw.ellipse(
+        (cx - z_circle_radius, cy - z_circle_radius, cx + z_circle_radius, cy + z_circle_radius),
+        outline=(0, 0, 255),
+        width=axis_width
+    )
+    # Draw a dot in the center to indicate Z pointing towards viewer
+    draw.ellipse(
+        (cx - 1, cy - 1, cx + 1, cy + 1),
+        fill=(0, 0, 255)
+    )
+
+
 @st.cache_data
 def generate_pdf(data: Dict[str, Any]) -> io.BytesIO:
     """Generate a PDF file with the calibration board."""
@@ -778,12 +858,13 @@ def generate_pdf(data: Dict[str, Any]) -> io.BytesIO:
     board_type = data.get("board_type", "aruco_grid")
 
     # Generate the appropriate board type
+    # Note: draw_overlays=True to include coordinate system and other overlays
     if board_type == "charuco":
-        img = generate_charuco_board(data, low_res=False, draw_overlays=False)
+        img = generate_charuco_board(data, low_res=False, draw_overlays=True)
     elif board_type == "checkerboard":
-        img = generate_checkerboard(data, low_res=False, draw_overlays=False)
+        img = generate_checkerboard(data, low_res=False, draw_overlays=True)
     else:
-        img = generate_aruco_grid(data, low_res=False, draw_overlays=False)
+        img = generate_aruco_grid(data, low_res=False, draw_overlays=True)
 
     paper_size = data.get("paper_size", "A4")
     orientation = data.get("orientation", "portrait")
@@ -1340,10 +1421,30 @@ with st.sidebar:
 
         show_scale = st.checkbox("Scale Ruler", value=True)
         show_params = st.checkbox("Parameters", value=True)
-        if board_type == "ArUco Grid":
-            show_coordsys = st.checkbox("Coordinate System", value=False)
+        show_coordsys = st.checkbox("Coordinate System", value=False)
+        
+        # Add slider for coordinate system size when enabled
+        if show_coordsys:
+            coordsys_size = st.slider(
+                "Coordinate System Size (mm)",
+                min_value=20,
+                max_value=200,
+                value=50,
+                step=10,
+                help="Size of the coordinate system axes in millimeters"
+            )
+            coordsys_thickness = st.slider(
+                "Coordinate System Thickness (mm)",
+                min_value=0.5,
+                max_value=2.0,
+                value=1.0,
+                step=0.5,
+                help="Thickness of the coordinate system axes in millimeters"
+            )
         else:
-            show_coordsys = False
+            coordsys_size = 50
+            coordsys_thickness = 1.0
+        
         col1, col2 = st.columns(2)
         with col1:
             horizontal_scale = st.number_input(
@@ -1371,8 +1472,8 @@ with st.sidebar:
     base_rotation_pitch = 0.0
     base_rotation_yaw = 0.0
 
-    # Only show coordinate system for ArUco Grid
-    if show_coordsys and board_type == "ArUco Grid":
+    # Show coordinate system transformation settings for all board types
+    if show_coordsys:
         with st.expander("Coordinate System", expanded=True):
             base_translation_x = st.number_input(
                 "Translation X (mm)", value=0.0, step=0.1
@@ -1457,12 +1558,15 @@ data.update(
         "show_scale": show_scale,
         "show_params": show_params,
         "show_coordsys": show_coordsys,
+        "coordsys_size": coordsys_size,
+        "coordsys_thickness": coordsys_thickness,
         "vertical_scale": vertical_scale,
         "horizontal_scale": horizontal_scale,
     }
 )
 
-if show_coordsys and board_type == "ArUco Grid":
+# Add transformation data for all board types when coordinate system is enabled
+if show_coordsys:
     data["base_translation"] = [
         base_translation_x,
         base_translation_y,
