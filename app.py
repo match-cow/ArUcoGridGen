@@ -314,8 +314,10 @@ def generate_aruco_grid(
     if show_coordsys and draw_overlays:
         coordsys_size_mm = data.get("coordsys_size", 50)
         coordsys_thickness_mm = data.get("coordsys_thickness", 1.0)
-        coordsys_size_px = int(coordsys_size_mm * px_per_mm)
-        coordsys_thickness_px = max(1, int(coordsys_thickness_mm * px_per_mm))
+        # Apply scaling factor to coordinate system dimensions for proportional scaling
+        scale_factor = (vertical_scale + horizontal_scale) / 2.0
+        coordsys_size_px = int(coordsys_size_mm * px_per_mm * scale_factor)
+        coordsys_thickness_px = max(1, int(coordsys_thickness_mm * px_per_mm * scale_factor))
         _draw_coordinate_system(pil_img, img_width_px, img_height_px, coordsys_size_px, coordsys_thickness_px)
 
     return pil_img
@@ -583,8 +585,10 @@ def generate_charuco_board(
     if show_coordsys and draw_overlays:
         coordsys_size_mm = data.get("coordsys_size", 50)
         coordsys_thickness_mm = data.get("coordsys_thickness", 1.0)
-        coordsys_size_px = int(coordsys_size_mm * px_per_mm)
-        coordsys_thickness_px = max(1, int(coordsys_thickness_mm * px_per_mm))
+        # Apply scaling factor to coordinate system dimensions for proportional scaling
+        scale_factor = (vertical_scale + horizontal_scale) / 2.0
+        coordsys_size_px = int(coordsys_size_mm * px_per_mm * scale_factor)
+        coordsys_thickness_px = max(1, int(coordsys_thickness_mm * px_per_mm * scale_factor))
         _draw_coordinate_system(pil_img, img_width_px, img_height_px, coordsys_size_px, coordsys_thickness_px)
 
     return pil_img
@@ -715,8 +719,10 @@ def generate_checkerboard(
     if show_coordsys and draw_overlays:
         coordsys_size_mm = data.get("coordsys_size", 50)
         coordsys_thickness_mm = data.get("coordsys_thickness", 1.0)
-        coordsys_size_px = int(coordsys_size_mm * px_per_mm)
-        coordsys_thickness_px = max(1, int(coordsys_thickness_mm * px_per_mm))
+        # Apply scaling factor to coordinate system dimensions for proportional scaling
+        scale_factor = (vertical_scale + horizontal_scale) / 2.0
+        coordsys_size_px = int(coordsys_size_mm * px_per_mm * scale_factor)
+        coordsys_thickness_px = max(1, int(coordsys_thickness_mm * px_per_mm * scale_factor))
         _draw_coordinate_system(pil_img, img_width_px, img_height_px, coordsys_size_px, coordsys_thickness_px)
 
     return pil_img
