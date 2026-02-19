@@ -251,25 +251,7 @@ def generate_aruco_grid(
 
     if draw_overlays:
         if show_scale:
-            draw = ImageDraw.Draw(pil_img)
-            ruler_y = img_height_px - 20
-            ruler_length_px = 100 * px_per_mm
-            start_x = 10
-            for i in range(0, 101, 1):
-                x = start_x + i * px_per_mm
-                if i % 10 == 0:
-                    draw.line(
-                        (x, ruler_y, x, ruler_y + 15), fill=(128, 128, 128), width=1
-                    )
-                else:
-                    draw.line(
-                        (x, ruler_y, x, ruler_y + 8), fill=(128, 128, 128), width=1
-                    )
-            draw.text(
-                (start_x + ruler_length_px + 5, ruler_y - 5),
-                "10 cm",
-                fill=(128, 128, 128),
-            )
+            _draw_scale_ruler(pil_img, img_height_px, px_per_mm)
 
         if data.get("show_params", True):
             font_size = 6
@@ -353,13 +335,7 @@ def generate_aruco_grid(
         draw.text((cx + 5, cy - axis_length - 15), "Y", fill=(0, 255, 0), font=font)
 
     if low_res:
-        draw = ImageDraw.Draw(pil_img)
-        width, height = pil_img.size
-        grey = (128, 128, 128)
-        draw.line((0, 0, width - 1, 0), fill=grey, width=2)
-        draw.line((0, height - 1, width - 1, height - 1), fill=grey, width=2)
-        draw.line((0, 0, 0, height - 1), fill=grey, width=2)
-        draw.line((width - 1, 0, width - 1, height - 1), fill=grey, width=2)
+        _draw_low_res_border(pil_img)
 
     vertical_scale = data.get("vertical_scale", 100.0) / 100.0
     horizontal_scale = data.get("horizontal_scale", 100.0) / 100.0
@@ -392,7 +368,6 @@ def generate_charuco_board(
     marker_size_mm = data.get("marker_size_mm", 30)
     paper_size = data.get("paper_size", "A4")
     orientation = data.get("orientation", "portrait")
-    show_ids = data.get("show_ids", True)
     show_scale = data.get("show_scale", True)
     show_params = data.get("show_params", True)
 
@@ -409,20 +384,11 @@ def generate_charuco_board(
         # In production, could raise an error or adjust automatically
         # For now, we'll let it proceed but the output will have overlapping markers
 
-    # DIAGNOSIS 2: Calculate required markers and dictionary capacity
-    num_corners = (squares_x - 1) * (squares_y - 1)
-    logger.info(f"CharUco board requires {num_corners} markers (corners)")
-
-    aruco_dict = cv2.aruco.getPredefinedDictionary(getattr(cv2.aruco, dictionary_name))
-
-    # Debug: Check dictionary properties
-    logger.info(f"Dictionary type: {type(aruco_dict)}")
-    logger.info(f"Dictionary bytesList shape: {aruco_dict.bytesList.shape}")
-
     # Calculate number of markers needed
     # CharUco board has (squares_x-1) * (squares_y-1) corners
     # and each corner needs a marker
     num_corners = (squares_x - 1) * (squares_y - 1)
+    aruco_dict = cv2.aruco.getPredefinedDictionary(getattr(cv2.aruco, dictionary_name))
     max_markers = aruco_dict.bytesList.shape[0]
 
     if num_corners > max_markers:
@@ -457,7 +423,6 @@ def generate_charuco_board(
 
     # Try OpenCV's built-in CharUco board generation first
     use_opencv = False
-    opencv_error = None
     try:
         if hasattr(cv2.aruco, "CharucoBoard_create"):
             logger.info("Attempting cv2.aruco.CharucoBoard_create...")
@@ -481,7 +446,6 @@ def generate_charuco_board(
             use_opencv = True
             logger.info("Using OpenCV CharucoBoard class - SUCCESS")
     except Exception as e:
-        opencv_error = str(e)
         logger.warning(f"OpenCV CharUco creation failed: {type(e).__name__}: {e}")
         use_opencv = False
 
@@ -495,12 +459,9 @@ def generate_charuco_board(
         except Exception as e:
             logger.warning(f"OpenCV generateImage failed: {type(e).__name__}: {e}")
             use_opencv = False
-            opencv_error = f"generateImage failed: {e}"
 
-    if use_opencv:
-        # Use OpenCV's built-in board generation
-        board_img = board.generateImage((board_width_px, board_height_px))
-    else:
+    # If OpenCV generation succeeded, board_img is already set
+    if not use_opencv:
         # Manual CharUco board generation (fallback when OpenCV doesn't have CharUco support)
         logger.info("FALLBACK: Generating CharUco board manually")
 
@@ -584,29 +545,12 @@ def generate_charuco_board(
 
     if draw_overlays:
         if show_scale:
-            draw = ImageDraw.Draw(pil_img)
-            ruler_y = img_height_px - 20
-            ruler_length_px = 100 * px_per_mm
-            start_x = 10
-            for i in range(0, 101, 1):
-                x = start_x + i * px_per_mm
-                if i % 10 == 0:
-                    draw.line(
-                        (x, ruler_y, x, ruler_y + 15), fill=(128, 128, 128), width=1
-                    )
-                else:
-                    draw.line(
-                        (x, ruler_y, x, ruler_y + 8), fill=(128, 128, 128), width=1
-                    )
-            draw.text(
-                (start_x + ruler_length_px + 5, ruler_y - 5),
-                "10 cm",
-                fill=(128, 128, 128),
-            )
+            _draw_scale_ruler(pil_img, img_height_px, px_per_mm)
 
         if show_params:
             font_size = 6
             font = _get_font(font_size)
+            draw = ImageDraw.Draw(pil_img)
             left_x = img_width_px - 140
             right_x = img_width_px - 60
             y_start = img_height_px - 20
@@ -618,7 +562,7 @@ def generate_charuco_board(
             )
             draw.text(
                 (right_x, y_start),
-                f"Type: CharUco",
+                "Type: CharUco",
                 fill=(0, 0, 0),
                 font=font,
             )
@@ -648,13 +592,7 @@ def generate_charuco_board(
             )
 
     if low_res:
-        draw = ImageDraw.Draw(pil_img)
-        width, height = pil_img.size
-        grey = (128, 128, 128)
-        draw.line((0, 0, width - 1, 0), fill=grey, width=2)
-        draw.line((0, height - 1, width - 1, height - 1), fill=grey, width=2)
-        draw.line((0, 0, 0, height - 1), fill=grey, width=2)
-        draw.line((width - 1, 0, width - 1, height - 1), fill=grey, width=2)
+        _draw_low_res_border(pil_img)
 
     vertical_scale = data.get("vertical_scale", 100.0) / 100.0
     horizontal_scale = data.get("horizontal_scale", 100.0) / 100.0
@@ -703,53 +641,36 @@ def generate_checkerboard(
     # Create white canvas
     img = np.ones((img_height_px, img_width_px, 3), dtype=np.uint8) * 255
 
-    # Calculate board area
-    board_width_px = int(squares_x * square_size_mm * px_per_mm)
-    board_height_px = int(squares_y * square_size_mm * px_per_mm)
+    # Calculate board area (including border)
+    board_width_px = int((squares_x * square_size_mm + 2 * border_mm) * px_per_mm)
+    board_height_px = int((squares_y * square_size_mm + 2 * border_mm) * px_per_mm)
     border_px = int(border_mm * px_per_mm)
 
     # Calculate offset to center the board
     offset_x = (img_width_px - board_width_px) // 2
     offset_y = (img_height_px - board_height_px) // 2
 
-    # Draw checkerboard
+    # Draw checkerboard inside the bordered board area
     square_px = int(square_size_mm * px_per_mm)
 
     for row in range(squares_y):
         for col in range(squares_x):
             # Alternate between black and white
             if (row + col) % 2 == 0:
-                x = offset_x + col * square_px
-                y = offset_y + row * square_px
+                x = offset_x + border_px + col * square_px
+                y = offset_y + border_px + row * square_px
                 img[y : y + square_px, x : x + square_px] = 0  # Black
 
     pil_img = Image.fromarray(img)
 
     if draw_overlays:
         if show_scale:
-            draw = ImageDraw.Draw(pil_img)
-            ruler_y = img_height_px - 20
-            ruler_length_px = 100 * px_per_mm
-            start_x = 10
-            for i in range(0, 101, 1):
-                x = start_x + i * px_per_mm
-                if i % 10 == 0:
-                    draw.line(
-                        (x, ruler_y, x, ruler_y + 15), fill=(128, 128, 128), width=1
-                    )
-                else:
-                    draw.line(
-                        (x, ruler_y, x, ruler_y + 8), fill=(128, 128, 128), width=1
-                    )
-            draw.text(
-                (start_x + ruler_length_px + 5, ruler_y - 5),
-                "10 cm",
-                fill=(128, 128, 128),
-            )
+            _draw_scale_ruler(pil_img, img_height_px, px_per_mm)
 
         if show_params:
             font_size = 6
             font = _get_font(font_size)
+            draw = ImageDraw.Draw(pil_img)
             left_x = img_width_px - 140
             right_x = img_width_px - 60
             y_start = img_height_px - 20
@@ -761,7 +682,7 @@ def generate_checkerboard(
             )
             draw.text(
                 (right_x, y_start),
-                f"Type: Checker",
+                "Type: Checker",
                 fill=(0, 0, 0),
                 font=font,
             )
@@ -791,13 +712,7 @@ def generate_checkerboard(
             )
 
     if low_res:
-        draw = ImageDraw.Draw(pil_img)
-        width, height = pil_img.size
-        grey = (128, 128, 128)
-        draw.line((0, 0, width - 1, 0), fill=grey, width=2)
-        draw.line((0, height - 1, width - 1, height - 1), fill=grey, width=2)
-        draw.line((0, 0, 0, height - 1), fill=grey, width=2)
-        draw.line((width - 1, 0, width - 1, height - 1), fill=grey, width=2)
+        _draw_low_res_border(pil_img)
 
     vertical_scale = data.get("vertical_scale", 100.0) / 100.0
     horizontal_scale = data.get("horizontal_scale", 100.0) / 100.0
@@ -823,6 +738,36 @@ def _get_font(font_size: int) -> ImageFont.FreeTypeFont:
         except OSError:
             continue
     return ImageFont.load_default()
+
+
+def _draw_scale_ruler(pil_img: Image.Image, img_height_px: int, px_per_mm: float) -> None:
+    """Draw a 10cm scale ruler on the image."""
+    draw = ImageDraw.Draw(pil_img)
+    ruler_y = img_height_px - 20
+    ruler_length_px = 100 * px_per_mm
+    start_x = 10
+    for i in range(0, 101, 1):
+        x = start_x + i * px_per_mm
+        if i % 10 == 0:
+            draw.line((x, ruler_y, x, ruler_y + 15), fill=(128, 128, 128), width=1)
+        else:
+            draw.line((x, ruler_y, x, ruler_y + 8), fill=(128, 128, 128), width=1)
+    draw.text(
+        (start_x + ruler_length_px + 5, ruler_y - 5),
+        "10 cm",
+        fill=(128, 128, 128),
+    )
+
+
+def _draw_low_res_border(pil_img: Image.Image) -> None:
+    """Draw a grey border around the image for low-res preview."""
+    draw = ImageDraw.Draw(pil_img)
+    width, height = pil_img.size
+    grey = (128, 128, 128)
+    draw.line((0, 0, width - 1, 0), fill=grey, width=2)
+    draw.line((0, height - 1, width - 1, height - 1), fill=grey, width=2)
+    draw.line((0, 0, 0, height - 1), fill=grey, width=2)
+    draw.line((width - 1, 0, width - 1, height - 1), fill=grey, width=2)
 
 
 @st.cache_data
@@ -881,7 +826,7 @@ def generate_pdf(data: Dict[str, Any]) -> io.BytesIO:
 
         # Add board type specific params
         if board_type == "charuco":
-            c.drawString(right_x, y_start, f"Type: CharUco")
+            c.drawString(right_x, y_start, "Type: CharUco")
             c.drawString(left_x, y_start + 5, f"Squares X: {data.get('squares_x', 5)}")
             c.drawString(right_x, y_start + 5, f"Squares Y: {data.get('squares_y', 7)}")
             c.drawString(
@@ -891,7 +836,7 @@ def generate_pdf(data: Dict[str, Any]) -> io.BytesIO:
                 right_x, y_start + 10, f"Marker: {data.get('marker_size_mm', 30)}mm"
             )
         elif board_type == "checkerboard":
-            c.drawString(right_x, y_start, f"Type: Checker")
+            c.drawString(right_x, y_start, "Type: Checker")
             c.drawString(left_x, y_start + 5, f"Squares X: {data.get('squares_x', 5)}")
             c.drawString(right_x, y_start + 5, f"Squares Y: {data.get('squares_y', 8)}")
             c.drawString(
@@ -984,12 +929,16 @@ def generate_json_config(data: Dict[str, Any]) -> str:
         total_width_mm = squares_x * square_size_mm
         total_height_mm = squares_y * square_size_mm
 
+        # Calculate page offset so corner positions are in page coordinates
+        page_offset_x_mm = (width_mm - total_width_mm) / 2.0
+        page_offset_y_mm = (height_mm - total_height_mm) / 2.0
+
         # Calculate corner positions (CharUco has (squares_x-1) * (squares_y-1) corners)
         corner_positions = []
         for row in range(squares_y - 1):
             for col in range(squares_x - 1):
-                x_mm = (col + 1) * square_size_mm
-                y_mm = (row + 1) * square_size_mm
+                x_mm = page_offset_x_mm + (col + 1) * square_size_mm
+                y_mm = page_offset_y_mm + (row + 1) * square_size_mm
                 corner_positions.append(
                     {
                         "row": row,
