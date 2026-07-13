@@ -23,8 +23,44 @@ env:
 
 
 jobs:
-  build:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install Python dependencies
+        run: uv sync --frozen --all-groups
+      - name: Backend checks
+        run: uv run ruff check backend main.py scripts && uv run pytest --cov=backend --cov-report=term-missing
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Frontend checks and production build
+        working-directory: frontend
+        run: npm run lint && npm run typecheck && npm run test:coverage && npm run build
+      - name: Verify generated OpenAPI artifacts
+        run: uv run python scripts/export_openapi.py && cd frontend && npm run generate:api && git diff --exit-code -- ../openapi.json src/api-types.ts
+      - name: Install Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Browser acceptance tests
+        working-directory: frontend
+        run: npx playwright test
+      - name: Production image smoke test
+        run: docker build -t arucogridgen:test . && docker run -d --name arucogridgen-test -p 8501:8501 arucogridgen:test && for i in {1..30}; do curl --fail http://127.0.0.1:8501/api/v2/health && break; sleep 1; done && curl --fail http://127.0.0.1:8501/ && docker rm -f arucogridgen-test
 
+  build:
+    needs: quality
     runs-on: ubuntu-latest
     permissions:
       contents: read

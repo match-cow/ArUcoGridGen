@@ -190,6 +190,12 @@ cython_debug/
 
 # Ruff stuff:
 .ruff_cache/
+frontend/node_modules/
+frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
+frontend/coverage/
+frontend/*.tsbuildinfo
 
 # PyPI configuration file
 .pypirc

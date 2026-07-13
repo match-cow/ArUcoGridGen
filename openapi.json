@@ -1,0 +1,658 @@
+{
+  "components": {
+    "schemas": {
+      "Annotations": {
+        "additionalProperties": false,
+        "properties": {
+          "show_frame_legend": {
+            "default": false,
+            "title": "Show Frame Legend",
+            "type": "boolean"
+          },
+          "show_parameters": {
+            "default": true,
+            "title": "Show Parameters",
+            "type": "boolean"
+          },
+          "show_ruler": {
+            "default": true,
+            "title": "Show Ruler",
+            "type": "boolean"
+          }
+        },
+        "title": "Annotations",
+        "type": "object"
+      },
+      "ArucoBoard": {
+        "additionalProperties": false,
+        "properties": {
+          "columns": {
+            "default": 5,
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Columns",
+            "type": "integer"
+          },
+          "dictionary": {
+            "default": "DICT_5X5_100",
+            "title": "Dictionary",
+            "type": "string"
+          },
+          "id_font_size_pt": {
+            "default": 8,
+            "maximum": 72.0,
+            "minimum": 6.0,
+            "title": "Id Font Size Pt",
+            "type": "number"
+          },
+          "marker_size_mm": {
+            "default": 30,
+            "exclusiveMinimum": 0.0,
+            "maximum": 200.0,
+            "title": "Marker Size Mm",
+            "type": "number"
+          },
+          "rows": {
+            "default": 7,
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Rows",
+            "type": "integer"
+          },
+          "separation_mm": {
+            "default": 10,
+            "exclusiveMinimum": 0.0,
+            "maximum": 200.0,
+            "title": "Separation Mm",
+            "type": "number"
+          },
+          "show_ids": {
+            "default": true,
+            "title": "Show Ids",
+            "type": "boolean"
+          },
+          "type": {
+            "const": "aruco",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "title": "ArucoBoard",
+        "type": "object"
+      },
+      "CharucoBoard": {
+        "additionalProperties": false,
+        "properties": {
+          "dictionary": {
+            "default": "DICT_5X5_250",
+            "title": "Dictionary",
+            "type": "string"
+          },
+          "marker_size_mm": {
+            "default": 18,
+            "exclusiveMinimum": 0.0,
+            "maximum": 200.0,
+            "title": "Marker Size Mm",
+            "type": "number"
+          },
+          "square_size_mm": {
+            "default": 30,
+            "exclusiveMinimum": 0.0,
+            "maximum": 200.0,
+            "title": "Square Size Mm",
+            "type": "number"
+          },
+          "squares_x": {
+            "default": 5,
+            "maximum": 100.0,
+            "minimum": 2.0,
+            "title": "Squares X",
+            "type": "integer"
+          },
+          "squares_y": {
+            "default": 7,
+            "maximum": 100.0,
+            "minimum": 2.0,
+            "title": "Squares Y",
+            "type": "integer"
+          },
+          "type": {
+            "const": "charuco",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "title": "CharucoBoard",
+        "type": "object"
+      },
+      "Checkerboard": {
+        "additionalProperties": false,
+        "properties": {
+          "border_mm": {
+            "default": 20,
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Border Mm",
+            "type": "number"
+          },
+          "square_size_mm": {
+            "default": 30,
+            "exclusiveMinimum": 0.0,
+            "maximum": 200.0,
+            "title": "Square Size Mm",
+            "type": "number"
+          },
+          "squares_x": {
+            "default": 5,
+            "maximum": 100.0,
+            "minimum": 2.0,
+            "title": "Squares X",
+            "type": "integer"
+          },
+          "squares_y": {
+            "default": 8,
+            "maximum": 100.0,
+            "minimum": 2.0,
+            "title": "Squares Y",
+            "type": "integer"
+          },
+          "type": {
+            "const": "checkerboard",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "title": "Checkerboard",
+        "type": "object"
+      },
+      "CoordinateFrame": {
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "default": false,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "pose": {
+            "$ref": "#/components/schemas/Pose",
+            "default": {
+              "pitch_deg": 0.0,
+              "roll_deg": 0.0,
+              "translation_x_m": 0.0,
+              "translation_y_m": 0.0,
+              "translation_z_m": 0.0,
+              "yaw_deg": 0.0
+            }
+          }
+        },
+        "title": "CoordinateFrame",
+        "type": "object"
+      },
+      "FitChange": {
+        "additionalProperties": false,
+        "properties": {
+          "after": {
+            "title": "After",
+            "type": "number"
+          },
+          "before": {
+            "title": "Before",
+            "type": "number"
+          },
+          "field": {
+            "title": "Field",
+            "type": "string"
+          }
+        },
+        "required": [
+          "field",
+          "before",
+          "after"
+        ],
+        "title": "FitChange",
+        "type": "object"
+      },
+      "FitResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "adjusted": {
+            "title": "Adjusted",
+            "type": "boolean"
+          },
+          "changes": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/FitChange"
+            },
+            "title": "Changes",
+            "type": "array"
+          },
+          "request": {
+            "$ref": "#/components/schemas/GenerateRequest"
+          },
+          "scale_factor": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 1.0,
+            "title": "Scale Factor",
+            "type": "number"
+          }
+        },
+        "required": [
+          "request",
+          "adjusted",
+          "scale_factor"
+        ],
+        "title": "FitResponse",
+        "type": "object"
+      },
+      "GenerateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "annotations": {
+            "$ref": "#/components/schemas/Annotations",
+            "default": {
+              "show_frame_legend": false,
+              "show_parameters": true,
+              "show_ruler": true
+            }
+          },
+          "board": {
+            "default": {
+              "columns": 5,
+              "dictionary": "DICT_5X5_100",
+              "id_font_size_pt": 8.0,
+              "marker_size_mm": 30.0,
+              "rows": 7,
+              "separation_mm": 10.0,
+              "show_ids": true,
+              "type": "aruco"
+            },
+            "discriminator": {
+              "mapping": {
+                "aruco": "#/components/schemas/ArucoBoard",
+                "charuco": "#/components/schemas/CharucoBoard",
+                "checkerboard": "#/components/schemas/Checkerboard"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ArucoBoard"
+              },
+              {
+                "$ref": "#/components/schemas/CharucoBoard"
+              },
+              {
+                "$ref": "#/components/schemas/Checkerboard"
+              }
+            ],
+            "title": "Board"
+          },
+          "coordinate_frame": {
+            "$ref": "#/components/schemas/CoordinateFrame",
+            "default": {
+              "enabled": false,
+              "pose": {
+                "pitch_deg": 0.0,
+                "roll_deg": 0.0,
+                "translation_x_m": 0.0,
+                "translation_y_m": 0.0,
+                "translation_z_m": 0.0,
+                "yaw_deg": 0.0
+              }
+            }
+          },
+          "page": {
+            "$ref": "#/components/schemas/Page",
+            "default": {
+              "orientation": "portrait",
+              "paper_size": "A4"
+            }
+          },
+          "print_compensation": {
+            "$ref": "#/components/schemas/PrintCompensation",
+            "default": {
+              "x_percent": 100.0,
+              "y_percent": 100.0
+            }
+          },
+          "schema_version": {
+            "const": "2.0",
+            "default": "2.0",
+            "title": "Schema Version",
+            "type": "string"
+          }
+        },
+        "title": "GenerateRequest",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "Page": {
+        "additionalProperties": false,
+        "properties": {
+          "orientation": {
+            "default": "portrait",
+            "enum": [
+              "portrait",
+              "landscape"
+            ],
+            "title": "Orientation",
+            "type": "string"
+          },
+          "paper_size": {
+            "default": "A4",
+            "enum": [
+              "A4",
+              "A3",
+              "A2",
+              "A1",
+              "Letter",
+              "Legal"
+            ],
+            "title": "Paper Size",
+            "type": "string"
+          }
+        },
+        "title": "Page",
+        "type": "object"
+      },
+      "Pose": {
+        "additionalProperties": false,
+        "properties": {
+          "pitch_deg": {
+            "default": 0,
+            "title": "Pitch Deg",
+            "type": "number"
+          },
+          "roll_deg": {
+            "default": 0,
+            "title": "Roll Deg",
+            "type": "number"
+          },
+          "translation_x_m": {
+            "default": 0,
+            "title": "Translation X M",
+            "type": "number"
+          },
+          "translation_y_m": {
+            "default": 0,
+            "title": "Translation Y M",
+            "type": "number"
+          },
+          "translation_z_m": {
+            "default": 0,
+            "title": "Translation Z M",
+            "type": "number"
+          },
+          "yaw_deg": {
+            "default": 0,
+            "title": "Yaw Deg",
+            "type": "number"
+          }
+        },
+        "title": "Pose",
+        "type": "object"
+      },
+      "PrintCompensation": {
+        "additionalProperties": false,
+        "properties": {
+          "x_percent": {
+            "default": 100,
+            "exclusiveMinimum": 0.0,
+            "maximum": 200.0,
+            "title": "X Percent",
+            "type": "number"
+          },
+          "y_percent": {
+            "default": 100,
+            "exclusiveMinimum": 0.0,
+            "maximum": 200.0,
+            "title": "Y Percent",
+            "type": "number"
+          }
+        },
+        "title": "PrintCompensation",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "ArUcoGridGen",
+    "version": "2.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v2/capabilities": {
+      "get": {
+        "operationId": "capabilities_api_v2_capabilities_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Capabilities"
+      }
+    },
+    "/api/v2/exports/config": {
+      "post": {
+        "operationId": "config_api_v2_exports_config_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Config"
+      }
+    },
+    "/api/v2/exports/pdf": {
+      "post": {
+        "operationId": "pdf_api_v2_exports_pdf_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Pdf"
+      }
+    },
+    "/api/v2/fit": {
+      "post": {
+        "operationId": "fit_api_v2_fit_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FitResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "No safe reduced configuration exists"
+          }
+        },
+        "summary": "Fit"
+      }
+    },
+    "/api/v2/health": {
+      "get": {
+        "operationId": "health_api_v2_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health"
+      }
+    },
+    "/api/v2/preview": {
+      "post": {
+        "operationId": "preview_api_v2_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview"
+      }
+    }
+  }
+}

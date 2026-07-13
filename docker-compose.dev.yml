@@ -1,0 +1,22 @@
+name: arucogridgen-dev
+
+services:
+  arucogridgen:
+    container_name: arucogridgen-dev
+    image: arucogridgen:dev
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${ARUCOGRIDGEN_PORT:-8501}:8501"
+    healthcheck:
+      test:
+        - CMD
+        - /app/.venv/bin/python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8501/api/v2/health', timeout=3)
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    init: true
