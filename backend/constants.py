@@ -22,4 +22,5 @@ DICTIONARIES = {
 }
 
 CHARUCO_DICTIONARIES = {k: v for k, v in DICTIONARIES.items() if k.startswith("DICT_") and "X" in k}
-EDGE_CLEARANCE_MM = 2.0
+# Keep all printable content outside the unprintable edge area of common printers.
+EDGE_CLEARANCE_MM = 4.5

@@ -1,6 +1,68 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
+for (const theme of ["light", "dark"] as const) {
+  test(`OS-selected ${theme} theme is complete and accessible`, async ({ page }) => {
+    const consoleErrors: string[] = [];
+    const failedRequests: string[] = [];
+    const failedResponses: string[] = [];
+    page.on("console", (message) => {
+      if (message.type() === "error") consoleErrors.push(message.text());
+    });
+    page.on("requestfailed", (request) => failedRequests.push(request.url()));
+    page.on("response", (response) => {
+      if (response.status() >= 400) failedResponses.push(`${response.status()} ${response.url()}`);
+    });
+    await page.emulateMedia({ colorScheme: theme });
+    await page.goto("/");
+    await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+    await expect(page.getByRole("img", { name: "MATCH COW" })).toHaveAttribute(
+      "src",
+      `/cow_${theme}.png`,
+    );
+    await expect(page.getByRole("img", { name: "MATCH COW" })).toHaveCSS("object-fit", "contain");
+    await expect(page.locator('link[rel~="icon"]')).toHaveAttribute("href", "/cow_favicon.png");
+    await expect(
+      page.getByRole("button", { name: `Switch to ${theme === "dark" ? "light" : "dark"} theme` }),
+    ).toBeVisible();
+    await expect(page.getByText("current", { exact: true })).toBeVisible();
+
+    const accessibility = await new AxeBuilder({ page }).analyze();
+    expect(
+      accessibility.violations.filter((violation) =>
+        ["serious", "critical"].includes(violation.impact || ""),
+      ),
+    ).toEqual([]);
+    const overflow = await page.evaluate(() => {
+      const workspace = document.querySelector<HTMLElement>(".workspace")!;
+      return {
+        workspaceX: workspace.scrollWidth - workspace.clientWidth,
+        workspaceY: workspace.scrollHeight - workspace.clientHeight,
+        pageX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      };
+    });
+    expect(overflow).toEqual({ workspaceX: 0, workspaceY: 0, pageX: 0 });
+    expect(consoleErrors).toEqual([]);
+    expect(failedRequests).toEqual([]);
+    expect(failedResponses).toEqual([]);
+  });
+}
+
+test("manual theme override survives reload and takes precedence over the OS", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.goto("/");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+
+  await page.getByRole("button", { name: "Switch to light theme" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  expect(await page.evaluate(() => localStorage.getItem("arucogridgen.theme"))).toBe("light");
+
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await expect(page.getByRole("img", { name: "MATCH COW" })).toHaveAttribute("src", "/cow_light.png");
+  await expect(page.getByRole("button", { name: "Switch to dark theme" })).toBeVisible();
+});
+
 test("all board workflows, recovery, accessibility basics, and downloads", async ({
   page,
 }) => {
@@ -55,8 +117,8 @@ test("all board workflows, recovery, accessibility basics, and downloads", async
   await page.getByRole("button", { name: "Portrait" }).click();
   await expect(page.getByText("current", { exact: true })).toBeVisible();
   await page.getByRole("radio", { name: "ArUco Grid" }).click();
-  await page.getByRole("switch", { name: /Export board-to-base pose/ }).click();
-  await page.getByLabel("Yaw (°)").fill("90");
+  await page.getByRole("switch", { name: /Include board-to-base transform/ }).click();
+  await page.getByLabel("Yaw").fill("90");
   await expect(page.getByText("current", { exact: true })).toBeVisible();
   expect(consoleErrors).toEqual([]);
 });
@@ -65,6 +127,10 @@ test("keyboard navigation reaches primary controls", async ({ page }) => {
   await page.goto("/");
   await page.keyboard.press("Tab");
   await expect(page.getByRole("link", { name: /GitHub/ })).toBeFocused();
+  await page.keyboard.press("Tab");
+  const themeToggle = page.getByRole("button", { name: /Switch to (light|dark) theme/ });
+  await expect(themeToggle).toBeFocused();
+  expect(await themeToggle.evaluate((element) => getComputedStyle(element).outlineWidth)).not.toBe("0px");
   await page.keyboard.press("Tab");
   await expect(page.getByRole("radio", { name: "ArUco Grid" })).toBeFocused();
 });
@@ -101,10 +167,33 @@ test("automatic fitting keeps clean geometry and reduces grid counts", async ({
   await expect(page.getByLabel("Rows")).toHaveValue("7");
 });
 
-test("desktop workspace visual", async ({ page }) => {
+test("light desktop workspace visual", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "light" });
   await page.goto("/");
   await expect(page.getByText("current", { exact: true })).toBeVisible();
-  await expect(page).toHaveScreenshot("default-workspace.png", {
+  await expect(page).toHaveScreenshot("light-workspace.png", {
+    animations: "disabled",
+    fullPage: true,
+  });
+});
+
+test("dark desktop workspace visual", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.goto("/");
+  await expect(page.getByText("current", { exact: true })).toBeVisible();
+  await expect(page).toHaveScreenshot("dark-workspace.png", {
+    animations: "disabled",
+    fullPage: true,
+  });
+});
+
+test("coordinate frame axes workspace visual", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.goto("/");
+  await expect(page.getByText("current", { exact: true })).toBeVisible();
+  await page.getByRole("switch", { name: "Coordinate frame axes" }).click();
+  await expect(page.getByText("current", { exact: true })).toBeVisible();
+  await expect(page).toHaveScreenshot("frame-axes-workspace.png", {
     animations: "disabled",
     fullPage: true,
   });

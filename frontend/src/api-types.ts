@@ -114,6 +114,7 @@ export interface components {
         Annotations: {
             /**
              * Show Frame Legend
+             * @description Draw board-coordinate axes at the compensated target's top-left: +X right, +Y down, and +Z into the page.
              * @default false
              */
             show_frame_legend: boolean;
@@ -162,7 +163,7 @@ export interface components {
             separation_mm: number;
             /**
              * Show Ids
-             * @default true
+             * @default false
              */
             show_ids: boolean;
             /**
@@ -292,7 +293,7 @@ export interface components {
              *       "marker_size_mm": 30,
              *       "rows": 7,
              *       "separation_mm": 10,
-             *       "show_ids": true,
+             *       "show_ids": false,
              *       "type": "aruco"
              *     }
              */

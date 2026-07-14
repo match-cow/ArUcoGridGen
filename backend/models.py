@@ -30,7 +30,13 @@ class PrintCompensation(StrictModel):
 class Annotations(StrictModel):
     show_ruler: bool = True
     show_parameters: bool = True
-    show_frame_legend: bool = False
+    show_frame_legend: bool = Field(
+        False,
+        description=(
+            "Draw board-coordinate axes at the compensated target's top-left: "
+            "+X right, +Y down, and +Z into the page."
+        ),
+    )
 
 
 class Pose(StrictModel):
@@ -63,7 +69,7 @@ class ArucoBoard(StrictModel):
     columns: int = Field(5, ge=1, le=100)
     marker_size_mm: float = Field(30, gt=0, le=200)
     separation_mm: float = Field(10, gt=0, le=200)
-    show_ids: bool = True
+    show_ids: bool = False
     id_font_size_pt: float = Field(8, ge=6, le=72)
 
 

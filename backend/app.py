@@ -12,7 +12,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from .constants import CHARUCO_DICTIONARIES, DICTIONARIES, PAPER_SIZES_MM
+from .constants import CHARUCO_DICTIONARIES, DICTIONARIES, EDGE_CLEARANCE_MM, PAPER_SIZES_MM
 from .errors import FitError
 from .fit import fit_request
 from .models import FitResponse, GenerateRequest
@@ -86,7 +86,7 @@ async def capabilities():
             "physical_mm": 200,
             "checkerboard_border_mm": 100,
             "preview_max_pixels": 1600,
-            "page_edge_clearance_mm": 2,
+            "page_edge_clearance_mm": EDGE_CLEARANCE_MM,
         },
         "board_types": ["aruco", "charuco", "checkerboard"],
         "defaults": GenerateRequest().model_dump(mode="json"),
