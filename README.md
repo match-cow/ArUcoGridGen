@@ -2,7 +2,7 @@
 
 A MATCH-branded web workspace for generating detector-valid ArUco grids, ChArUco boards, and checkerboards for robotics and computer-vision calibration.
 
-The v2 application uses a React/TypeScript frontend and a typed FastAPI backend. One immutable millimetre-based scene drives the capped PNG preview, one-page vector PDF, deterministic JSON manifest, automatic page fitting, and exact 100 mm ruler geometry.
+The v2 application uses a React/TypeScript frontend and a typed FastAPI backend. One immutable millimetre-based scene drives the capped PNG preview, one-page vector PDF, deterministic JSON manifest, automatic page fitting, and exact 100 mm ruler geometry. An optional board-coordinate overlay marks the compensated target's top-left with red `+X` right, green `+Y` down, and blue `+Z` into the page; it is independent from the JSON-only board-to-base pose.
 
 ## Run locally
 

@@ -1,1 +1,29 @@
-<!doctype html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><link rel="icon" href="/matchfavicon.png"/><title>ArUcoGridGen</title></head><body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body></html>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <script>
+      (() => {
+        const key = "arucogridgen.theme";
+        let saved;
+        try {
+          saved = localStorage.getItem(key);
+        } catch {
+          // System preference remains available when storage is blocked.
+        }
+        const theme = saved === "light" || saved === "dark"
+          ? saved
+          : matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.style.colorScheme = theme;
+      })();
+    </script>
+    <link rel="icon" type="image/png" href="/cow_favicon.png" />
+    <title>ArUcoGridGen</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

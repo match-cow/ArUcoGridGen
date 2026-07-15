@@ -6,6 +6,7 @@
         "properties": {
           "show_frame_legend": {
             "default": false,
+            "description": "Draw board-coordinate axes at the compensated target's top-left: +X right, +Y down, and +Z into the page.",
             "title": "Show Frame Legend",
             "type": "boolean"
           },
@@ -67,7 +68,7 @@
             "type": "number"
           },
           "show_ids": {
-            "default": true,
+            "default": false,
             "title": "Show Ids",
             "type": "boolean"
           },
@@ -273,7 +274,7 @@
               "marker_size_mm": 30.0,
               "rows": 7,
               "separation_mm": 10.0,
-              "show_ids": true,
+              "show_ids": false,
               "type": "aruco"
             },
             "discriminator": {

@@ -18,7 +18,7 @@
   - Render that scene directly to a capped 1,600-pixel PNG preview, a one-page vector PDF, and deterministic JSON.
   - Decode ArUco modules into vector rectangles; derive ChArUco placement from OpenCV board metadata; render checkerboards as vector squares.
 - Apply X/Y print compensation about the board center while leaving the physical page size unchanged. All board-attached geometry and exported feature coordinates use the compensated dimensions.
-- Reserve a 2 mm page-edge clearance and calculate safe annotation areas. Marker IDs, scale ruler, parameters, and frame legend must never cover calibration targets; return a specific fit error when safe placement is impossible.
+- Reserve a 2 mm page-edge clearance and calculate safe annotation areas. Marker IDs, scale ruler, and parameters must never cover calibration targets; the optional coordinate axes intentionally overlay the target at its top-left. Return a specific fit error when any complete annotation bounds exceed page clearance.
 - Define the board frame at the compensated outer board's top-left corner: `+X` right, `+Y` down, and `+Z` into the page. Pose rotation is `Rz(yaw) · Ry(pitch) · Rx(roll)`; exported quaternions use XYZW order and transform translations use metres.
 - Build a desktop-first MATCH-branded workspace:
   - Header with branding and application identity.
@@ -46,7 +46,7 @@
   - ChArUco: dictionary, square counts, square size, and marker size.
   - Checkerboard: square counts, square size, and border size.
 - Retain current paper sizes and dictionary catalogs. Enforce finite values, grid limits of 100, physical dimensions up to 200 mm, checkerboard border up to 100 mm, dictionary capacity, `marker_size < square_size` for ChArUco, page fit, and annotation fit. Reject unknown and extra fields.
-- Use the currently visible defaults: A4 portrait; ArUco `DICT_5X5_100`, 5×7, 30 mm markers, 10 mm separation; ChArUco `DICT_5X5_250`, 5×7, 30/18 mm; Checkerboard 5×8, 30 mm squares, 20 mm border; ruler and parameters enabled; frame disabled; compensation 100%.
+- Use the currently visible defaults: A4 portrait; ArUco `DICT_5X5_100`, 5×7, 30 mm markers, 10 mm separation; ChArUco `DICT_5X5_250`, 5×7, 30/18 mm; Checkerboard 5×8, 30 mm squares, 20 mm border; ruler and parameters enabled; coordinate axes disabled; compensation 100%.
 - Export JSON with the normalized request, page and target bounds, final feature coordinates, marker/corner IDs, page placement, frame convention, and optional board-to-base matrix/quaternion. Omit timestamps so identical inputs produce identical JSON.
 - Return structured `422` errors with stable codes, field paths, messages, and required-versus-available dimensions. Unexpected failures return a generic request ID while logging technical detail server-side.
 - Generate checked-in TypeScript API types from FastAPI's OpenAPI document and make CI fail if regeneration produces a diff.

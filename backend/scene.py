@@ -15,6 +15,14 @@ from .models import ArucoBoard, CharucoBoard, Checkerboard, GenerateRequest
 from .typography import ANNOTATION_FONT_PT, FONT_NAME
 
 
+FRAME_AXIS_LENGTH_MM = 18.0
+FRAME_ARROWHEAD_MM = 2.5
+FRAME_Z_RADIUS_MM = 2.25
+FRAME_LABEL_FONT_PT = 8.0
+FRAME_UNDER_STROKE_MM = 1.25
+FRAME_STROKE_MM = 0.55
+
+
 @dataclass(frozen=True)
 class Rect:
     x: float
@@ -52,6 +60,52 @@ class RulerGeometry:
 
 
 @dataclass(frozen=True)
+class FrameLine:
+    start: tuple[float, float]
+    end: tuple[float, float]
+
+
+@dataclass(frozen=True)
+class FrameLabel:
+    axis: str
+    text: str
+    x: float
+    baseline_y: float
+    width: float
+    ascent: float
+    descent: float
+
+
+@dataclass(frozen=True)
+class FrameAxis:
+    axis: str
+    shaft: FrameLine
+    arrowheads: tuple[FrameLine, FrameLine]
+    label: FrameLabel
+
+    @property
+    def endpoint(self) -> tuple[float, float]:
+        return self.shaft.end
+
+
+@dataclass(frozen=True)
+class FrameZSymbol:
+    center: tuple[float, float]
+    radius: float
+    cross: tuple[FrameLine, FrameLine]
+    label: FrameLabel
+
+
+@dataclass(frozen=True)
+class FrameGeometry:
+    bounds: Rect
+    origin: tuple[float, float]
+    x_axis: FrameAxis
+    y_axis: FrameAxis
+    z_axis: FrameZSymbol
+
+
+@dataclass(frozen=True)
 class Scene:
     request: GenerateRequest
     page: Rect
@@ -64,6 +118,7 @@ class Scene:
     marker_labels: tuple[tuple[int, float, float], ...] = ()
     annotation_rects: dict[str, Rect] = field(default_factory=dict)
     ruler: RulerGeometry | None = None
+    frame: FrameGeometry | None = None
     transform: dict[str, Any] | None = None
 
 
@@ -83,7 +138,12 @@ def ruler_geometry(x: float = 0, y: float = 0) -> RulerGeometry:
         for value, text in zip(range(0, 101, 20), ("0", "20", "40", "60", "80", "100"), strict=True)
     )
     ticks = tuple(
-        RulerTick(start + value, baseline_y, baseline_y - (3.0 if value % 20 == 0 else 2.0), value % 20 == 0)
+        RulerTick(
+            start + value,
+            baseline_y,
+            baseline_y - (3.0 if value % 20 == 0 else 2.0),
+            value % 20 == 0,
+        )
         for value in range(0, 101, 10)
     )
     return RulerGeometry(
@@ -92,6 +152,88 @@ def ruler_geometry(x: float = 0, y: float = 0) -> RulerGeometry:
         ticks,
         labels,
         RulerLabel("mm", unit_left, y + font_height, label_widths["mm"]),
+    )
+
+
+def frame_geometry(x: float, y: float) -> FrameGeometry:
+    """Return fixed physical board-frame geometry in scene coordinates."""
+    ascent_pt, descent_pt = pdfmetrics.getAscentDescent(FONT_NAME, FRAME_LABEL_FONT_PT)
+    ascent = ascent_pt / mm
+    descent = -descent_pt / mm
+
+    def label(axis: str, left: float, baseline_y: float) -> FrameLabel:
+        width = pdfmetrics.stringWidth(axis, FONT_NAME, FRAME_LABEL_FONT_PT) / mm
+        return FrameLabel(axis, axis, left, baseline_y, width, ascent, descent)
+
+    x_end = (x + FRAME_AXIS_LENGTH_MM, y)
+    y_end = (x, y + FRAME_AXIS_LENGTH_MM)
+    x_axis = FrameAxis(
+        "x",
+        FrameLine((x, y), x_end),
+        (
+            FrameLine(x_end, (x_end[0] - FRAME_ARROWHEAD_MM, y - FRAME_ARROWHEAD_MM)),
+            FrameLine(x_end, (x_end[0] - FRAME_ARROWHEAD_MM, y + FRAME_ARROWHEAD_MM)),
+        ),
+        label(
+            "X",
+            x_end[0] + 1.5,
+            y + (ascent - descent) / 2,
+        ),
+    )
+    y_label_width = pdfmetrics.stringWidth("Y", FONT_NAME, FRAME_LABEL_FONT_PT) / mm
+    y_axis = FrameAxis(
+        "y",
+        FrameLine((x, y), y_end),
+        (
+            FrameLine(y_end, (x - FRAME_ARROWHEAD_MM, y_end[1] - FRAME_ARROWHEAD_MM)),
+            FrameLine(y_end, (x + FRAME_ARROWHEAD_MM, y_end[1] - FRAME_ARROWHEAD_MM)),
+        ),
+        label("Y", x - y_label_width / 2, y_end[1] + 1.5 + ascent),
+    )
+    z_label_width = pdfmetrics.stringWidth("Z", FONT_NAME, FRAME_LABEL_FONT_PT) / mm
+    z_arm = FRAME_Z_RADIUS_MM * 0.58
+    z_axis = FrameZSymbol(
+        (x, y),
+        FRAME_Z_RADIUS_MM,
+        (
+            FrameLine((x - z_arm, y - z_arm), (x + z_arm, y + z_arm)),
+            FrameLine((x + z_arm, y - z_arm), (x - z_arm, y + z_arm)),
+        ),
+        label(
+            "Z",
+            x - FRAME_Z_RADIUS_MM - 1.0 - z_label_width,
+            y + (ascent - descent) / 2,
+        ),
+    )
+
+    padding = FRAME_UNDER_STROKE_MM / 2
+    lines = (
+        x_axis.shaft,
+        *x_axis.arrowheads,
+        y_axis.shaft,
+        *y_axis.arrowheads,
+        *z_axis.cross,
+    )
+    min_x = min(point[0] for line in lines for point in (line.start, line.end)) - padding
+    min_y = min(point[1] for line in lines for point in (line.start, line.end)) - padding
+    max_x = max(point[0] for line in lines for point in (line.start, line.end)) + padding
+    max_y = max(point[1] for line in lines for point in (line.start, line.end)) + padding
+    min_x = min(min_x, x - FRAME_Z_RADIUS_MM - padding)
+    min_y = min(min_y, y - FRAME_Z_RADIUS_MM - padding)
+    max_x = max(max_x, x + FRAME_Z_RADIUS_MM + padding)
+    max_y = max(max_y, y + FRAME_Z_RADIUS_MM + padding)
+    for item in (x_axis.label, y_axis.label, z_axis.label):
+        min_x = min(min_x, item.x - padding)
+        min_y = min(min_y, item.baseline_y - item.ascent - padding)
+        max_x = max(max_x, item.x + item.width + padding)
+        max_y = max(max_y, item.baseline_y + item.descent + padding)
+
+    return FrameGeometry(
+        Rect(min_x, min_y, max_x - min_x, max_y - min_y),
+        (x, y),
+        x_axis,
+        y_axis,
+        z_axis,
     )
 
 
@@ -344,20 +486,16 @@ def build_scene(req: GenerateRequest) -> Scene:
             )
         annotations["ruler"] = Rect((page_w - w) / 2, top_y, w, h)
 
-    # Textual metadata belongs to a stable bottom rail. Use one shared width so
-    # parameter and frame text align instead of appearing to drift horizontally.
+    # Textual metadata belongs to a stable bottom rail. The coordinate frame is
+    # board-attached geometry and intentionally overlays the calibration target.
     metadata_width = min(150.0, page_w - 2 * EDGE_CLEARANCE_MM)
     bottom_specs = []
     if req.annotations.show_parameters:
         bottom_specs.append(("parameters", metadata_width, 4.0))
-    if req.annotations.show_frame_legend:
-        bottom_specs.append(("frame_legend", metadata_width, 4.0))
     bottom_y = page_h - EDGE_CLEARANCE_MM
     occupied_bottom = (
         label_band.y + label_band.height if label_band is not None else target.y + target.height
     )
-    # Reverse allocation keeps the frame legend nearest the page edge and the
-    # parameters immediately above it, regardless of board type.
     for name, w, h in reversed(bottom_specs):
         x = (page_w - w) / 2
         if bottom_y - h - annotation_gap < occupied_bottom:
@@ -372,22 +510,42 @@ def build_scene(req: GenerateRequest) -> Scene:
         annotations[name] = Rect(x, bottom_y, w, h)
         bottom_y -= annotation_gap
 
+    frame = None
+    if req.annotations.show_frame_legend:
+        frame = frame_geometry(target.x, target.y)
+        bounds = frame.bounds
+        if (
+            bounds.x < EDGE_CLEARANCE_MM
+            or bounds.y < EDGE_CLEARANCE_MM
+            or bounds.x + bounds.width > page_w - EDGE_CLEARANCE_MM
+            or bounds.y + bounds.height > page_h - EDGE_CLEARANCE_MM
+        ):
+            raise FitError(
+                "annotation_fit",
+                ["annotations", "frame_legend"],
+                "The coordinate frame axes do not fit within the page clearance",
+                {"width": bounds.width, "height": bounds.height},
+                {"width": page_w - 2 * EDGE_CLEARANCE_MM, "height": page_h - 2 * EDGE_CLEARANCE_MM},
+            )
+        annotations["frame_legend"] = bounds
+
     ruler = None
     if "ruler" in annotations:
         box = annotations["ruler"]
         ruler = ruler_geometry(box.x, box.y)
 
     return Scene(
-        req,
-        Rect(0, 0, page_w, page_h),
-        target,
-        tuple(black),
-        tuple(features),
-        tuple(white),
-        tuple(marker_backgrounds),
-        tuple(marker_white),
-        tuple(labels),
-        annotations,
-        ruler,
-        _pose(req),
+        request=req,
+        page=Rect(0, 0, page_w, page_h),
+        target=target,
+        black_rects=tuple(black),
+        features=tuple(features),
+        white_rects=tuple(white),
+        marker_rects=tuple(marker_backgrounds),
+        marker_white_rects=tuple(marker_white),
+        marker_labels=tuple(labels),
+        annotation_rects=annotations,
+        ruler=ruler,
+        frame=frame,
+        transform=_pose(req),
     )

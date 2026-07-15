@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import type { components } from "./api-types";
@@ -24,6 +24,30 @@ describe("workspace", () => {
     expect(screen.getByRole("link", { name: "View ArUcoGridGen on GitHub" })).toHaveAttribute("href", "https://github.com/match-cow/ArUcoGridGen");
     expect(screen.queryByText(/v2 workspace/i)).not.toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "ArUco Grid" })).toBeChecked();
+    const geometryCard = screen.getByRole("button", { name: "Board geometry" }).closest<HTMLElement>(".card")!;
+    const printCard = screen.getByRole("button", { name: "Print and annotations" }).closest<HTMLElement>(".card")!;
+    expect(within(geometryCard).queryByRole("switch", { name: "Marker ID labels" })).not.toBeInTheDocument();
+    expect(within(printCard).getByRole("switch", { name: "Marker ID labels" })).not.toBeChecked();
+    const frameAxes = within(printCard).getByRole("switch", { name: "Coordinate frame axes" });
+    expect(frameAxes).not.toBeChecked();
+    expect(frameAxes).toHaveAccessibleDescription("Board origin: +X right, +Y down, +Z into page");
+    const frameHelp = screen.getByRole("button", { name: "What is the coordinate frame feature?" });
+    expect(frameHelp).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText("When is this useful?")).not.toBeInTheDocument();
+    fireEvent.click(frameHelp);
+    expect(frameHelp).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("When is this useful?")).toBeInTheDocument();
+    expect(screen.getByText(/does not change the preview or PDF/i)).toBeInTheDocument();
+    const transformSwitch = screen.getByRole("switch", { name: "Include board-to-base transform" });
+    expect(transformSwitch).toHaveAccessibleDescription("Adds a 4×4 matrix and quaternion to the JSON download; no effect on PDF");
+    fireEvent.click(transformSwitch);
+    expect(screen.getByRole("group", { name: "Board pose in base frame" })).toBeInTheDocument();
+    expect(screen.getByRole("spinbutton", { name: "Origin X" })).toHaveValue(0);
+    expect(screen.queryByRole("switch", { name: "Frame legend" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("spinbutton", { name: "ID font size (pt)" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("switch", { name: "Marker ID labels" }));
+    expect(screen.getByRole("switch", { name: "Marker ID labels" })).toBeChecked();
+    expect(screen.getByRole("spinbutton", { name: "ID font size (pt)" })).toBeInTheDocument();
     expect(document.querySelectorAll(".board-pattern")).toHaveLength(3);
     fireEvent.click(screen.getByRole("radio", { name: "Checkerboard" }));
     await act(async () => Promise.resolve());
@@ -31,6 +55,27 @@ describe("workspace", () => {
     expect(screen.queryByLabelText("Dictionary")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Board geometry" }));
     expect(screen.getByRole("button", { name: "Board geometry" })).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("renders detector-valid DICT_5X5_100 modules in the ArUco menu card", () => {
+    render(<App />);
+    const expected = new Map([
+      ["0", ["10100", "01011", "01100", "10101", "11100"]],
+      ["1", ["00001", "11000", "00001", "10111", "00110"]],
+      ["5", ["11101", "01000", "00010", "00001", "01101"]],
+      ["6", ["01101", "00111", "10101", "11111", "01100"]],
+    ]);
+
+    document.querySelectorAll<SVGGElement>("[data-marker-id]").forEach((marker) => {
+      const modules = Array.from({ length: 5 }, () => Array(5).fill("0"));
+      marker.querySelectorAll<SVGRectElement>(".pattern-paper").forEach((cell) => {
+        const x = (Number(cell.getAttribute("x")) - 3) / 3;
+        const y = (Number(cell.getAttribute("y")) - 3) / 3;
+        modules[y][x] = "1";
+      });
+      expect(modules.map((row) => row.join(""))).toEqual(expected.get(marker.dataset.markerId!));
+    });
+    expect(document.querySelectorAll("[data-marker-id]")).toHaveLength(expected.size);
   });
 
   it("automatically fits a transition and Undo restores the complete context", async () => {
@@ -98,5 +143,24 @@ describe("workspace", () => {
     expect(screen.getByRole("button", { name: "Download PDF" })).toBeEnabled();
     fireEvent.change(screen.getByLabelText("Rows"), { target: { value: "8" } });
     expect(screen.getByRole("button", { name: "Download PDF" })).toBeDisabled();
+  });
+
+  it("emits the compatible frame field and refreshes preview for the axes toggle", async () => {
+    render(<App />);
+    await act(async () => { await vi.advanceTimersByTimeAsync(300); });
+    vi.mocked(fetch).mockClear();
+
+    fireEvent.click(screen.getByRole("switch", { name: "Coordinate frame axes" }));
+    expect(screen.getByRole("switch", { name: "Coordinate frame axes" })).toBeChecked();
+    expect(screen.getByRole("button", { name: "Download PDF" })).toBeDisabled();
+    await act(async () => { await vi.advanceTimersByTimeAsync(300); });
+
+    const previewCall = vi.mocked(fetch).mock.calls.find(([input]) =>
+      String(input).endsWith("/api/v2/preview")
+    );
+    expect(previewCall).toBeDefined();
+    const emitted = JSON.parse(String(previewCall?.[1]?.body)) as GenerateRequest;
+    expect(emitted.annotations.show_frame_legend).toBe(true);
+    expect(screen.getByRole("button", { name: "Download PDF" })).toBeEnabled();
   });
 });
