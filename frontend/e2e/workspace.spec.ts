@@ -117,8 +117,9 @@ test("all board workflows, recovery, accessibility basics, and downloads", async
   await page.getByRole("button", { name: "Portrait" }).click();
   await expect(page.getByText("current", { exact: true })).toBeVisible();
   await page.getByRole("radio", { name: "ArUco Grid" }).click();
+  await page.getByRole("button", { name: "Coordinate frame" }).click();
   await page.getByRole("switch", { name: /Include board-to-base transform/ }).click();
-  await page.getByLabel("Yaw").fill("90");
+  await page.getByLabel("Yaw (°)").fill("90");
   await expect(page.getByText("current", { exact: true })).toBeVisible();
   expect(consoleErrors).toEqual([]);
 });
@@ -190,6 +191,8 @@ test("dark desktop workspace visual", async ({ page }) => {
 test("coordinate frame axes workspace visual", async ({ page }) => {
   await page.emulateMedia({ colorScheme: "light" });
   await page.goto("/");
+  await expect(page.getByText("current", { exact: true })).toBeVisible();
+  await page.getByLabel("Columns").fill("4");
   await expect(page.getByText("current", { exact: true })).toBeVisible();
   await page.getByRole("switch", { name: "Coordinate frame axes" }).click();
   await expect(page.getByText("current", { exact: true })).toBeVisible();

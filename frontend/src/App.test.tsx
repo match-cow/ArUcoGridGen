@@ -30,7 +30,11 @@ describe("workspace", () => {
     expect(within(printCard).getByRole("switch", { name: "Marker ID labels" })).not.toBeChecked();
     const frameAxes = within(printCard).getByRole("switch", { name: "Coordinate frame axes" });
     expect(frameAxes).not.toBeChecked();
-    expect(frameAxes).toHaveAccessibleDescription("Board origin: +X right, +Y down, +Z into page");
+    expect(frameAxes).not.toHaveAccessibleDescription();
+    const frameTrigger = screen.getByRole("button", { name: "Coordinate frame" });
+    expect(frameTrigger).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(frameTrigger);
+    expect(screen.queryByText("Optional JSON metadata for a known board mounting")).not.toBeInTheDocument();
     const frameHelp = screen.getByRole("button", { name: "What is the coordinate frame feature?" });
     expect(frameHelp).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByText("When is this useful?")).not.toBeInTheDocument();
@@ -42,7 +46,7 @@ describe("workspace", () => {
     expect(transformSwitch).toHaveAccessibleDescription("Adds a 4×4 matrix and quaternion to the JSON download; no effect on PDF");
     fireEvent.click(transformSwitch);
     expect(screen.getByRole("group", { name: "Board pose in base frame" })).toBeInTheDocument();
-    expect(screen.getByRole("spinbutton", { name: "Origin X" })).toHaveValue(0);
+    expect(screen.getByRole("spinbutton", { name: "Origin X (m)" })).toHaveValue(0);
     expect(screen.queryByRole("switch", { name: "Frame legend" })).not.toBeInTheDocument();
     expect(screen.queryByRole("spinbutton", { name: "ID font size (pt)" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("switch", { name: "Marker ID labels" }));
@@ -114,8 +118,9 @@ describe("workspace", () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(300); });
     const alert = screen.getByRole("alert");
     expect(alert).toHaveTextContent("This board is too large for A4 portrait.");
-    expect(screen.getByRole("button", { name: "Coordinate frame" }).compareDocumentPosition(alert) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(alert.closest(".paper-wrap")).not.toBeNull();
     expect(screen.getByRole("button", { name: "Fit to page" })).toBeInTheDocument();
+    expect(screen.queryByText("The last valid preview is shown. Adjust the geometry or use Fit to page.")).not.toBeInTheDocument();
   });
 
   it("aborts superseded fit requests", async () => {
