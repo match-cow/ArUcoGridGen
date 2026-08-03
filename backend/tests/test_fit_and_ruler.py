@@ -180,6 +180,19 @@ def test_ruler_labels_are_centered_on_exact_major_ticks_and_rendered_by_both_for
     assert render_pdf(scene).startswith(b"%PDF")
 
 
+def test_a6_portrait_rejects_the_100_mm_ruler_outside_its_printable_width():
+    payload = GenerateRequest().model_dump(mode="json")
+    payload["page"]["paper_size"] = "A6"
+    payload["board"].update({"rows": 1, "columns": 1, "marker_size_mm": 20})
+    payload["annotations"]["show_parameters"] = False
+
+    with pytest.raises(FitError) as caught:
+        build_scene(GenerateRequest.model_validate(payload))
+
+    assert caught.value.code == "annotation_fit"
+    assert caught.value.path == ["annotations", "ruler"]
+
+
 def test_aruco_markers_use_solid_backgrounds_with_white_module_overlays():
     scene = build_scene(GenerateRequest())
     assert scene.black_rects == ()
@@ -233,6 +246,9 @@ def test_charuco_coordinate_frame_replaces_the_old_bottom_legend_rail():
 def test_every_supported_page_reserves_a_printer_safe_margin(paper, orientation):
     payload = GenerateRequest().model_dump(mode="json")
     payload["page"] = {"paper_size": paper, "orientation": orientation}
+    # A physical 100 mm ruler cannot fit inside A6 portrait's 96 mm printable width.
+    if paper == "A6" and orientation == "portrait":
+        payload["annotations"]["show_ruler"] = False
     fitted = fit_request(GenerateRequest.model_validate(payload)).request
     scene = build_scene(fitted)
 

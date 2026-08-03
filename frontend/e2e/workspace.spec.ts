@@ -55,7 +55,7 @@ test("manual theme override survives reload and takes precedence over the OS", a
 
   await page.getByRole("button", { name: "Switch to light theme" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
-  expect(await page.evaluate(() => localStorage.getItem("arucogridgen.theme"))).toBe("light");
+  expect(await page.evaluate(() => localStorage.getItem("posegridgen.theme"))).toBe("light");
 
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");

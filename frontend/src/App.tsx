@@ -35,7 +35,7 @@ const initial: GenerateRequest = {
   annotations: { show_ruler: true, show_parameters: true, show_frame_legend: false },
   coordinate_frame: { enabled: false, pose: { translation_x_m: 0, translation_y_m: 0, translation_z_m: 0, roll_deg: 0, pitch_deg: 0, yaw_deg: 0 } },
 };
-const paperSizes: Record<PaperSize, [number, number]> = { A4: [210, 297], A3: [297, 420], A2: [420, 594], A1: [594, 841], Letter: [215.9, 279.4], Legal: [215.9, 355.6] };
+const paperSizes: Record<PaperSize, [number, number]> = { A4: [210, 297], A3: [297, 420], A2: [420, 594], A1: [594, 841], A5: [148, 210], A6: [105, 148], Letter: [215.9, 279.4], Legal: [215.9, 355.6] };
 const layoutKey = (type: BoardType, paper: PaperSize, orientation: Orientation) => `${type}:${paper}:${orientation}`;
 const pageLabel = (request: GenerateRequest) => `${request.page.paper_size} ${request.page.orientation}`;
 const arucoCardMarkers = [
@@ -188,7 +188,7 @@ export default function App() {
   const fieldError = (...path: string[]) => errors.find((error) => path.every((part, index) => String(error.path[index]) === part))?.message;
 
   return <TooltipProvider delayDuration={350}><ToastProvider swipeDirection="right">
-    <header className="app-header"><div className="brand"><img src={theme === "dark" ? "/cow_dark.png" : "/cow_light.png"} alt="MATCH COW" /><span aria-hidden /><div className="brand-copy"><h1>Calibration Board Studio</h1><p>Print-ready targets with exact geometry</p></div></div><div className="header-actions"><a className="github-link" href="https://github.com/match-cow/ArUcoGridGen" target="_blank" rel="noreferrer" aria-label="View ArUcoGridGen on GitHub"><span>GitHub</span><ExternalLink size={14} aria-hidden /></a><Button className="theme-toggle" variant="outline" size="icon" aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`} onClick={toggleTheme}>{theme === "dark" ? <Sun size={17} aria-hidden /> : <Moon size={17} aria-hidden />}</Button></div></header>
+    <header className="app-header"><div className="brand"><img src={theme === "dark" ? "/cow_dark.png" : "/cow_light.png"} alt="MATCH COW" /><span aria-hidden /><div className="brand-copy"><h1>PoseGridGen</h1><p>Calibration boards with exact geometry</p></div></div><div className="header-actions"><a className="github-link" href="https://github.com/match-cow/PoseGridGen" target="_blank" rel="noreferrer" aria-label="View PoseGridGen on GitHub"><span>GitHub</span><ExternalLink size={14} aria-hidden /></a><Button className="theme-toggle" variant="outline" size="icon" aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`} onClick={toggleTheme}>{theme === "dark" ? <Sun size={17} aria-hidden /> : <Moon size={17} aria-hidden />}</Button></div></header>
     <main className="app-shell">
       <aside className="inspector" aria-label="Board configuration">
         <div className="inspector-heading"><div><span className="eyebrow">Target type</span><h2>Choose a board</h2></div><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" tabIndex={-1} aria-label="Reset current board" onClick={resetBoard}><RotateCcw size={16} /></Button></TooltipTrigger><TooltipContent>Reset board geometry</TooltipContent></Tooltip></div>

@@ -1,6 +1,6 @@
 # UI Style Guide
 
-ArUcoGridGen should feel like a precise, compact engineering tool: quiet neutral surfaces, crisp geometry, dense but readable controls, and a single lime accent. The calibration board remains the visual focus; decoration is restrained.
+PoseGridGen should feel like a precise, compact engineering tool: quiet neutral surfaces, crisp geometry, dense but readable controls, and a single lime accent. The calibration board remains the visual focus; decoration is restrained.
 
 ## Theme and color
 

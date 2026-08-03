@@ -19,8 +19,8 @@ from .models import FitResponse, GenerateRequest
 from .render import manifest, render_pdf, render_png
 from .scene import Scene, build_scene
 
-log = logging.getLogger("arucogridgen")
-app = FastAPI(title="ArUcoGridGen", version="2.0.0")
+log = logging.getLogger("posegridgen")
+app = FastAPI(title="PoseGridGen", version="2.0.0")
 _cache: OrderedDict[str, Scene] = OrderedDict()
 _CACHE_LIMIT = 64
 

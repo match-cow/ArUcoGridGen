@@ -24,6 +24,7 @@ from .typography import ANNOTATION_FONT_PT, FONT_NAME, FONT_PATH
 
 
 FRAME_COLORS = {"X": "#d32f2f", "Y": "#2e7d32", "Z": "#1565c0"}
+ANNOTATION_HORIZONTAL_INSET_MM = 0.5
 
 
 def _number(value: float) -> str:
@@ -59,9 +60,21 @@ def annotation_text(scene: Scene, name: str) -> str:
     )
 
 
-def _annotation_baseline(box: Rect) -> float:
+def _annotation_font_size(scene: Scene, name: str) -> float:
+    """Keep metadata readable while fitting it inside narrow printable pages."""
+    text_width = (
+        pdfmetrics.stringWidth(annotation_text(scene, name), FONT_NAME, ANNOTATION_FONT_PT) / mm
+    )
+    available_width = max(
+        0.1,
+        scene.annotation_rects[name].width - 2 * ANNOTATION_HORIZONTAL_INSET_MM,
+    )
+    return min(ANNOTATION_FONT_PT, ANNOTATION_FONT_PT * available_width / text_width)
+
+
+def _annotation_baseline(box: Rect, font_size_pt: float = ANNOTATION_FONT_PT) -> float:
     """Center Vera text optically and return its shared scene baseline."""
-    ascent_pt, descent_pt = pdfmetrics.getAscentDescent(FONT_NAME, ANNOTATION_FONT_PT)
+    ascent_pt, descent_pt = pdfmetrics.getAscentDescent(FONT_NAME, font_size_pt)
     ascent = ascent_pt * 25.4 / 72
     descent_depth = -descent_pt * 25.4 / 72
     return box.y + box.height / 2 + (ascent - descent_depth) / 2
@@ -120,11 +133,12 @@ def render_png(scene: Scene, cap: int = 1600) -> bytes:
     for name, box in scene.annotation_rects.items():
         if name in {"ruler", "frame_legend"}:
             continue
+        font_size = _annotation_font_size(scene, name)
         draw.text(
-            ((box.x + box.width / 2) * scale, _annotation_baseline(box) * scale),
+            ((box.x + box.width / 2) * scale, _annotation_baseline(box, font_size) * scale),
             annotation_text(scene, name),
             fill="black",
-            font=font_for(ANNOTATION_FONT_PT),
+            font=font_for(font_size),
             anchor="ms",
         )
     if scene.ruler:
@@ -230,16 +244,18 @@ def render_pdf(scene: Scene) -> bytes:
     for marker_id, x, y in scene.marker_labels:
         c.setFont(FONT_NAME, scene.request.board.id_font_size_pt)
         c.drawCentredString(x * mm, (scene.page.height - y) * mm, str(marker_id))
-    c.setFont(FONT_NAME, ANNOTATION_FONT_PT)
     for name, box in scene.annotation_rects.items():
         if name in {"ruler", "frame_legend"}:
             continue
+        font_size = _annotation_font_size(scene, name)
+        c.setFont(FONT_NAME, font_size)
         c.drawCentredString(
             (box.x + box.width / 2) * mm,
-            (scene.page.height - _annotation_baseline(box)) * mm,
+            (scene.page.height - _annotation_baseline(box, font_size)) * mm,
             annotation_text(scene, name),
         )
     if scene.ruler:
+        c.setFont(FONT_NAME, ANNOTATION_FONT_PT)
         x1, x2, y = scene.ruler.baseline
         c.setLineWidth(0.25 * mm)
         c.line(x1 * mm, (scene.page.height - y) * mm, x2 * mm, (scene.page.height - y) * mm)

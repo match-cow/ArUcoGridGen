@@ -1,14 +1,14 @@
-name: arucogridgen-dev
+name: posegridgen-dev
 
 services:
-  arucogridgen:
-    container_name: arucogridgen-dev
-    image: arucogridgen:dev
+  posegridgen:
+    container_name: posegridgen-dev
+    image: posegridgen:dev
     build:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "${ARUCOGRIDGEN_PORT:-8501}:8501"
+      - "${POSEGRIDGEN_PORT:-8501}:8501"
     healthcheck:
       test:
         - CMD

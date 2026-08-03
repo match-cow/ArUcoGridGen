@@ -34,7 +34,7 @@ wheels = [
 ]
 
 [[package]]
-name = "arucogridgen"
+name = "posegridgen"
 version = "2.0.0"
 source = { virtual = "." }
 dependencies = [

@@ -1,11 +1,11 @@
-# ArUcoGridGen v2 Comprehensive Rewrite
+# PoseGridGen Comprehensive Rewrite
 
 ## Summary
 
 - Replace the 1,700-line Streamlit `app.py` with a React/TypeScript frontend and a typed FastAPI backend.
 - Target robotics and computer-vision users working primarily in desktop Chromium.
 - Preserve the three board workflows—ArUco Grid, ChArUco, and Checkerboard—plus live preview, printable PDF, JSON export, annotations, print compensation, and coordinate transforms.
-- Introduce a clean v2 contract; legacy JSON and pixel-level output compatibility are intentionally out of scope.
+- Introduce a clean API contract; legacy JSON and pixel-level output compatibility are intentionally out of scope.
 - Retain the MATCH logo, lime accent, stateless single-container deployment, GHCR publishing, and public port `8501`.
 - Remove Streamlit, `pdf2image`, Poppler, duplicated overlay rendering, and the current failure mode where an invalid configuration can leave an old PDF available for download.
 
@@ -30,14 +30,14 @@
 - Use a bounded in-memory cache keyed by a canonical SHA-256 configuration hash. Store no user data and require no database, authentication, CORS exceptions, or background workers.
 - Serve the built SPA and API from one Uvicorn process. Use a multi-stage Node/Python image, run as a non-root user, exclude browsers and test dependencies from production, and health-check the API.
 
-## Public v2 Interfaces
+## Public API Interfaces
 
 | Method and path | Contract |
 |---|---|
 | `GET /api/v2/capabilities` | Supported paper sizes, dictionary allowlists/capacities, limits, defaults, and board-type metadata |
-| `POST /api/v2/preview` | Strict v2 request to `image/png`; returns configuration hash headers |
+| `POST /api/v2/preview` | Strict request to `image/png`; returns configuration hash headers |
 | `POST /api/v2/exports/pdf` | Same request to an attachment PDF with exact physical page dimensions |
-| `POST /api/v2/exports/config` | Same request to a deterministic v2 JSON manifest |
+| `POST /api/v2/exports/config` | Same request to a deterministic JSON manifest |
 | `GET /api/v2/health` | Lightweight readiness response used by Docker and CI |
 
 - Model requests as a discriminated union containing `schema_version`, `page`, board-specific `board`, `print_compensation`, `annotations`, and `coordinate_frame`.

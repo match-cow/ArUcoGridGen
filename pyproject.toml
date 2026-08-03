@@ -1,5 +1,5 @@
 [project]
-name = "arucogridgen"
+name = "posegridgen"
 version = "2.0.0"
 description = "Printable calibration board generator"
 readme = "README.md"
@@ -14,6 +14,9 @@ dependencies = [
   "Pillow>=11,<13",
   "reportlab>=4.2,<6",
 ]
+
+[project.urls]
+Repository = "https://github.com/match-cow/PoseGridGen"
 
 [dependency-groups]
 dev = ["httpx>=0.28,<1", "pytest>=8.3,<10", "pytest-cov>=6,<8", "ruff>=0.12,<1", "pypdf>=5,<7", "pymupdf>=1.26,<2"]

@@ -1,7 +1,9 @@
+name: posegridgen
+
 services:
-  arucogridgen:
-    container_name: arucogridgen
-    image: ghcr.io/match-cow/arucogridgen:main
+  posegridgen:
+    container_name: posegridgen
+    image: ghcr.io/match-cow/posegridgen:main
     ports:
       - "8501:8501"
     healthcheck:

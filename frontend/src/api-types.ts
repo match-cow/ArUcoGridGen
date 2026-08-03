@@ -351,7 +351,7 @@ export interface components {
              * @default A4
              * @enum {string}
              */
-            paper_size: "A4" | "A3" | "A2" | "A1" | "Letter" | "Legal";
+            paper_size: "A4" | "A3" | "A2" | "A1" | "A5" | "A6" | "Letter" | "Legal";
         };
         /** Pose */
         Pose: {

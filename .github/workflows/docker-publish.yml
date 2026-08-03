@@ -57,7 +57,7 @@ jobs:
         working-directory: frontend
         run: npx playwright test
       - name: Production image smoke test
-        run: docker build -t arucogridgen:test . && docker run -d --name arucogridgen-test -p 8501:8501 arucogridgen:test && for i in {1..30}; do curl --fail http://127.0.0.1:8501/api/v2/health && break; sleep 1; done && curl --fail http://127.0.0.1:8501/ && docker rm -f arucogridgen-test
+        run: docker build -t posegridgen:test . && docker run -d --name posegridgen-test -p 8501:8501 posegridgen:test && for i in {1..30}; do curl --fail http://127.0.0.1:8501/api/v2/health && break; sleep 1; done && curl --fail http://127.0.0.1:8501/ && docker rm -f posegridgen-test
 
   build:
     needs: quality

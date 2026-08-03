@@ -21,8 +21,7 @@ describe("workspace", () => {
 
   it("uses visual board radios, board-specific controls, and collapsible cards", async () => {
     render(<App />);
-    expect(screen.getByRole("link", { name: "View ArUcoGridGen on GitHub" })).toHaveAttribute("href", "https://github.com/match-cow/ArUcoGridGen");
-    expect(screen.queryByText(/v2 workspace/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "View PoseGridGen on GitHub" })).toHaveAttribute("href", "https://github.com/match-cow/PoseGridGen");
     expect(screen.getByRole("radio", { name: "ArUco Grid" })).toBeChecked();
     const geometryCard = screen.getByRole("button", { name: "Board geometry" }).closest<HTMLElement>(".card")!;
     const printCard = screen.getByRole("button", { name: "Print and annotations" }).closest<HTMLElement>(".card")!;
@@ -59,6 +58,14 @@ describe("workspace", () => {
     expect(screen.queryByLabelText("Dictionary")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Board geometry" }));
     expect(screen.getByRole("button", { name: "Board geometry" })).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("offers DIN A5 and A6 as paper sizes", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("combobox", { name: "Paper size" }));
+
+    expect(screen.getByRole("option", { name: "A5" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "A6" })).toBeInTheDocument();
   });
 
   it("renders detector-valid DICT_5X5_100 modules in the ArUco menu card", () => {

@@ -476,6 +476,14 @@ def build_scene(req: GenerateRequest) -> Scene:
     top_y = EDGE_CLEARANCE_MM
     if req.annotations.show_ruler:
         w, h = ruler_template.bounds.width, ruler_template.bounds.height
+        if w + 2 * EDGE_CLEARANCE_MM > page_w:
+            raise FitError(
+                "annotation_fit",
+                ["annotations", "ruler"],
+                "The 100 mm scale ruler does not fit within the page clearance",
+                {"width": w + 2 * EDGE_CLEARANCE_MM, "height": h},
+                available,
+            )
         if top_y + h + annotation_gap > target.y:
             raise FitError(
                 "annotation_fit",

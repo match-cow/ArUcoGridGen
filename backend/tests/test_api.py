@@ -36,6 +36,30 @@ def test_health_and_capabilities():
     assert result.json()["defaults"]["board"]["dictionary"] == "DICT_5X5_100"
     assert result.json()["defaults"]["board"]["show_ids"] is False
     assert result.json()["limits"]["page_edge_clearance_mm"] == EDGE_CLEARANCE_MM
+    assert result.json()["paper_sizes_mm"]["A5"] == [148.0, 210.0]
+    assert result.json()["paper_sizes_mm"]["A6"] == [105.0, 148.0]
+
+
+def test_din_a5_and_a6_pdf_page_sizes():
+    for paper, expected in {"A5": (148, 210), "A6": (105, 148)}.items():
+        body = default()
+        body["page"]["paper_size"] = paper
+        body["board"].update({"rows": 2, "columns": 2, "marker_size_mm": 20})
+        body["annotations"] = {
+            "show_ruler": False,
+            "show_parameters": False,
+            "show_frame_legend": False,
+        }
+
+        response = request("POST", "/api/v2/exports/pdf", json=body)
+
+        assert response.status_code == 200
+        page = PdfReader(io.BytesIO(response.content)).pages[0]
+        dimensions_mm = (
+            float(page.mediabox.width) * 25.4 / 72,
+            float(page.mediabox.height) * 25.4 / 72,
+        )
+        assert all(abs(actual - wanted) < 0.01 for actual, wanted in zip(dimensions_mm, expected))
 
 
 def test_aruco_marker_ids_are_hidden_by_default_and_can_be_enabled():

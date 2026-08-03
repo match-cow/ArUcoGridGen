@@ -11,7 +11,7 @@ class StrictModel(BaseModel):
 
 
 class Page(StrictModel):
-    paper_size: Literal["A4", "A3", "A2", "A1", "Letter", "Legal"] = "A4"
+    paper_size: Literal["A4", "A3", "A2", "A1", "A5", "A6", "Letter", "Legal"] = "A4"
     orientation: Literal["portrait", "landscape"] = "portrait"
 
 

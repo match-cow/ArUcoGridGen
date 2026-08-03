@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 export type Theme = "light" | "dark";
 
-export const THEME_STORAGE_KEY = "arucogridgen.theme";
+export const THEME_STORAGE_KEY = "posegridgen.theme";
 const DARK_MODE_QUERY = "(prefers-color-scheme: dark)";
 
 function isTheme(value: string | null | undefined): value is Theme {
